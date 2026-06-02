@@ -1,551 +1,2262 @@
 // game.js
-const gravitiy = 62;
-const jump = -25;
-const GroundLevel = 2
+const gravitiy = 70;
+const jump = -28;
+const GroundLevel = 4;
 const scale = 8;
-const drawingscale = `5`
-let width = 50;
-let height = 20
-let bg;
+const drawingscale = 2;
+let width = 96;
+let height = 42;
 
-
-
-
-const keys = trackkey()
+const DEBUG_QUERY = new URLSearchParams(window.location.search);
+const DEBUG_FAST_TIMELINE = DEBUG_QUERY.has("fast");
+const DEBUG_HARDSHIP_START = DEBUG_QUERY.has("hardship");
+const TIMELINE_MULTIPLIER = DEBUG_FAST_TIMELINE ? 80 : 0.93;
+const YEAR_DURATION_SECONDS = 14;
+const keys = trackkey();
 
 Array.prototype.last = function(){
-    return this[this.length - 1]
-}
-
+    return this[this.length - 1];
+};
 
 class FrameTracker {
     constructor(scale){
-        this.scale = scale
-        this.frames={}
-        this.lastanimtion = null
+        this.scale = scale;
+        this.frames = {};
     }
 
-    add(actorsize,framesname,framesnumber,backgroundphoto,framesspeed){
+    add(actorsize, framesname, framesnumber, backgroundphoto, framesspeed){
         if(!this.frames[framesname]){
-            this.frames[framesname] = { }        
+            this.frames[framesname] = {};
         }
         this.frames[framesname] = {
             backgroundphoto,
-            anmtionframes:this.generateFrames(actorsize,framesnumber,this.scale),
-            index:0,
+            anmtionframes: this.generateFrames(actorsize, framesnumber, this.scale),
+            framesnumber,
+            index: 0,
             framesspeed
+        };
+        const preloadUrl = new URL(backgroundphoto, window.location.href).href;
+        if(!(Array.from(document.head.getElementsByTagName("link")).find((e)=> e.href == preloadUrl))){
+            let preload = document.createElement("link");
+            preload.href = preloadUrl;
+            preload.rel = "preload";
+            preload.as = "image";
+            document.head.appendChild(preload);
         }
-        console.log(actorsize,framesname,framesnumber,backgroundphoto,framesspeed)
-        console.log(backgroundphoto.slice(2))
-        if(!(Array.from(document.head.getElementsByTagName("link")).find((e)=> e.href == `${window.location}${backgroundphoto.slice(2)}`))){
-            let preload = document.createElement("link")
-            preload.href = `${window.location}${backgroundphoto.slice(2)}`
-            preload.rel = "preload"
-            preload.as = "image"
-            document.head.appendChild(preload)
-        }
-
     }
 
-    generateFrames(actorsize,framesnumber,scale){
-        let res = []
-        for(let i = 0 ; i < framesnumber ; i++){
-            if(i==0)res.push([(actorsize.x - actorsize.y) * scale / 2,-0.2])
-            else res.push([res[i-1][0] - actorsize.x*2 * scale,-0.2])
+    generateFrames(actorsize, framesnumber, scale){
+        let res = [];
+        for(let i = 0; i < framesnumber; i++){
+            if(i == 0) res.push([(actorsize.x - actorsize.y) * scale / 2, -0.2]);
+            else res.push([res[i - 1][0] - actorsize.x * 2 * scale, -0.2]);
         }
-        return res
+        return res;
     }
 
     nextFrame(framesname){
-        let frame = this.frames[framesname].anmtionframes[Math.trunc(this.frames[framesname].index)]
-        this.frames[framesname].index = (this.frames[framesname].index + this.frames[framesname].framesspeed) % this.frames[framesname].anmtionframes.length
-        return frame
+        let frame = this.frames[framesname].anmtionframes[Math.trunc(this.frames[framesname].index)];
+        this.frames[framesname].index = (this.frames[framesname].index + this.frames[framesname].framesspeed) % this.frames[framesname].anmtionframes.length;
+        return frame;
     }
 
-    update(actorhtmlelement,animtionname,actor){
+    update(actorhtmlelement, animtionname, frameWidth, frameHeight = frameWidth){
         for(let animtion in this.frames){
             if(this.frames[animtion].index != 0 && animtion != animtionname){
-                this.rest(animtion)
+                this.rest(animtion);
             }
         }
-        let frame = this.nextFrame(animtionname)
-        actorhtmlelement.style.backgroundImage = `url(${this.frames[animtionname].backgroundphoto})`
-        actorhtmlelement.style.backgroundSize = "cover"
-        actorhtmlelement.style.backgroundRepeat = "no-repeat"
-        actorhtmlelement.style.backgroundPosition = `${frame[0]}px ${frame[1]}px`
-        if(actor.type.indexOf("obstacle") !== -1)
-        actorhtmlelement.style.transform = `scale(${-drawingscale},${drawingscale})`
-
+        let frameData = this.frames[animtionname];
+        let frameIndex = Math.trunc(frameData.index);
+        this.nextFrame(animtionname);
+        actorhtmlelement.style.backgroundImage = `url(${this.frames[animtionname].backgroundphoto})`;
+        actorhtmlelement.style.backgroundSize = `${frameWidth * frameData.framesnumber}px ${frameHeight}px`;
+        actorhtmlelement.style.backgroundRepeat = "no-repeat";
+        actorhtmlelement.style.backgroundPosition = `${-frameIndex * frameWidth}px 0px`;
     }
 
     rest(framesname){
-        this.frames[framesname].index = 0
+        this.frames[framesname].index = 0;
     }
-
 }
+
 class Vector{
-    constructor(x,y){
+    constructor(x, y){
         this.x = x;
         this.y = y;
     }
 
     add(vector){
-        this.x += vector.x
-        this.y += vector.y
+        this.x += vector.x;
+        this.y += vector.y;
     }
 
     times(factor){
-        this.x *= factor
-        this.y *= factor
+        this.x *= factor;
+        this.y *= factor;
     }
-} 
-
+}
 
 function rounddecimat(d){
-    return Number.parseFloat(d.toFixed(2))
+    return Number.parseFloat(d.toFixed(2));
 }
 
-
-function overlap(actor1,actor2){
-    return actor1.postionVector.x + actor1.size.x >= actor2.postionVector.x 
-    && actor1.postionVector.x  <= actor2.postionVector.x + actor2.size.x 
-    && actor1.postionVector.y  + actor1.size.y  >= actor2.postionVector.y 
-    && actor1.postionVector.y <= actor2.postionVector.y + actor2.size.y 
+function overlap(actor1, actor2){
+    const box1 = actor1.getCollisionBox ? actor1.getCollisionBox() : {
+        x: actor1.postionVector.x,
+        y: actor1.postionVector.y,
+        width: actor1.size.x,
+        height: actor1.size.y
+    };
+    const box2 = actor2.getCollisionBox ? actor2.getCollisionBox() : {
+        x: actor2.postionVector.x,
+        y: actor2.postionVector.y,
+        width: actor2.size.x,
+        height: actor2.size.y
+    };
+    return box1.x + box1.width >= box2.x
+    && box1.x <= box2.x + box2.width
+    && box1.y + box1.height >= box2.y
+    && box1.y <= box2.y + box2.height;
 }
 
-
-function randomrange(min,max){
-    return Math.floor(Math.random() * (max - min + 1)) + min
+function randomrange(min, max){
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-
-function makeelment(tag,attrs,childeren = []){
-    let element = document.createElement(tag)
+function makeelment(tag, attrs, childeren = []){
+    let element = document.createElement(tag);
     for(let key in attrs){
-        element.setAttribute(key,attrs[key])
+        if(key == "text"){
+            element.textContent = attrs[key];
+        }
+        else{
+            element.setAttribute(key, attrs[key]);
+        }
     }
     for(let child of childeren){
-        element.appendChild(child)
+        element.appendChild(child);
     }
-    return element
+    return element;
 }
-
 
 function trackkey(){
     const keys = {
-        "arrowup":false
-    }
-    window.addEventListener("keydown",(e)=>{
-            if(e.key === "ArrowUp"){
-                keys["arrowup"] = true;
-                e.preventDefault()
-            }
-            if(e.key === ' '){
-                keys["space"] = true;
-                setTimeout(()=>{
-                    keys["space"] = false;
-
-                },800)
-                e.preventDefault()
-            }
-        
-    })
-    window.addEventListener("touchstart",()=>{
-        keys["arrowup"] = true;
-    })
-    window.addEventListener("touchend",()=>{
-        keys["arrowup"] = false
-    })
-    window.addEventListener("keyup",(e)=>{
-        if(e.key === "ArrowUp"){
-            keys["arrowup"] = false;
+        arrowup: false,
+        arrowdown: false,
+        start: false
+    };
+    window.addEventListener("keydown", (e)=>{
+        if(e.key === "ArrowUp" || e.key === " "){
+            keys.arrowup = true;
+            e.preventDefault();
         }
-
-    })
-    return keys
+        if(e.key === "ArrowDown" || e.key.toLowerCase() === "s"){
+            keys.arrowdown = true;
+            e.preventDefault();
+        }
+        if(e.key === "Enter"){
+            keys.start = true;
+            e.preventDefault();
+        }
+    });
+    window.addEventListener("keyup", (e)=>{
+        if(e.key === "ArrowUp" || e.key === " "){
+            keys.arrowup = false;
+        }
+        if(e.key === "ArrowDown" || e.key.toLowerCase() === "s"){
+            keys.arrowdown = false;
+        }
+        if(e.key === "Enter"){
+            keys.start = false;
+        }
+    });
+    window.addEventListener("touchstart", ()=>{
+        keys.arrowup = true;
+    });
+    window.addEventListener("touchend", ()=>{
+        keys.arrowup = false;
+    });
+    return keys;
 }
 
+function clamp(value, min = 0, max = 100){
+    return Math.max(min, Math.min(max, value));
+}
+
+const RESOURCE_LABELS = {
+    money: "Money",
+    food: "Food",
+    hope: "Hope",
+    readiness: "War Readiness"
+};
+
+const RESOURCE_ORDER = ["money", "food", "hope", "readiness"];
+const VISIBLE_RESOURCE_ORDER = ["money", "food", "hope"];
+const ICON_ONLY_COLLECTIBLES = {
+    Bread: "bread",
+    "Soup Bowl": "soup",
+    Coins: "coins",
+    "Water Can": "water"
+};
+
+const HISTORICAL_IMAGES = {
+    crash: {
+        src: "assets/historical/crash-1929.jpg",
+        alt: "Crowd outside the New York Stock Exchange during the 1929 crash"
+    },
+    bank: {
+        src: "assets/historical/bank-run.jpg",
+        alt: "Crowd gathered outside American Union Bank during a Depression-era bank run"
+    },
+    breadline: {
+        src: "assets/historical/breadline.jpg",
+        alt: "Great Depression breadline in New York City"
+    },
+    hooverville: {
+        src: "assets/historical/hooverville.jpg",
+        alt: "Hooverville sign and temporary shelter during the Great Depression"
+    },
+    fdr: {
+        src: "assets/historical/fdr-1933.jpg",
+        alt: "Franklin D. Roosevelt portrait from 1933"
+    },
+    ccc: {
+        src: "assets/historical/ccc.jpg",
+        alt: "Civilian Conservation Corps workers during the New Deal"
+    },
+    wpa: {
+        src: "assets/historical/wpa.jpg",
+        alt: "Works Progress Administration workers on a public works project"
+    },
+    socialSecurity: {
+        src: "assets/historical/social-security.jpg",
+        alt: "Franklin D. Roosevelt signing the Social Security Act"
+    },
+    dust: {
+        src: "assets/historical/dust-bowl.jpg",
+        alt: "Child photographed during Dust Bowl-era farm hardship"
+    },
+    migration: {
+        src: "assets/historical/migration-west.jpg",
+        alt: "Dorothea Lange photograph of a migrant mother"
+    },
+    europeWar: {
+        src: "assets/historical/war-europe.jpg",
+        alt: "Civilian victim after German air attack in Poland in 1939"
+    },
+    lendLease: {
+        src: "assets/historical/lend-lease.jpg",
+        alt: "American spare parts arriving in England under Lend-Lease"
+    },
+    pearlHarbor: {
+        src: "assets/historical/pearl-harbor.jpg",
+        alt: "Photograph from the Japanese attack on Pearl Harbor"
+    },
+    rationing: {
+        src: "assets/historical/rationing.jpg",
+        alt: "World War II ration stamp book"
+    },
+    rosie: {
+        src: "assets/historical/rosie.jpg",
+        alt: "We Can Do It poster associated with women in wartime industry"
+    },
+    incarceration: {
+        src: "assets/historical/incarceration.png",
+        alt: "Members of the Mochida family awaiting evacuation during Japanese American incarceration"
+    },
+    warEnds: {
+        src: "assets/historical/war-ends.jpg",
+        alt: "Crowd in Times Square celebrating V-J Day in 1945"
+    }
+};
+
+function formatEffect(effect){
+    return RESOURCE_ORDER
+        .filter((key)=> effect[key])
+        .map((key)=> `${effect[key] > 0 ? "+" : ""}${effect[key]} ${RESOURCE_LABELS[key]}`)
+        .join(", ");
+}
+
+const FACTS = [
+    { id: "stock-crash-1929", year: "1929", label: "1929 Stock Market Crash" },
+    { id: "bank-failures", year: "1929-1933", label: "Bank failures spread financial panic" },
+    { id: "buying-on-margin", year: "1929", label: "Buying on margin increased crash-era risk" },
+    { id: "unemployment-rises", year: "1930-1932", label: "Unemployment rose sharply during the Depression" },
+    { id: "breadlines", year: "1930-1932", label: "Breadlines showed hunger and weak relief systems" },
+    { id: "hoovervilles", year: "1930-1932", label: "Hoovervilles formed as families lost homes" },
+    { id: "farm-foreclosures", year: "1930s", label: "Farm foreclosures pushed rural families into crisis" },
+    { id: "dry-dust-bowl-conditions", year: "1930s", label: "Dry Great Plains conditions devastated farms" },
+    { id: "migration-west", year: "1930s", label: "Many farm families migrated west for work" },
+    { id: "fdr-elected-1932", year: "1932", label: "Franklin D. Roosevelt won the 1932 election" },
+    { id: "first-hundred-days", year: "1933", label: "The First Hundred Days launched rapid New Deal action" },
+    { id: "emergency-banking-act", year: "1933", label: "Emergency Banking Act tried to restore trust in banks" },
+    { id: "bank-holiday", year: "1933", label: "Bank Holiday temporarily closed banks for inspection" },
+    { id: "fireside-chats", year: "1933", label: "Fireside Chats explained federal action by radio" },
+    { id: "fdic", year: "1933", label: "FDIC protected bank deposits and encouraged confidence" },
+    { id: "ccc", year: "1933", label: "Civilian Conservation Corps, CCC, hired young men for conservation work" },
+    { id: "cwa", year: "1933", label: "Civil Works Administration, CWA, provided short-term work relief" },
+    { id: "pwa", year: "1933", label: "Public Works Administration, PWA, funded large public projects" },
+    { id: "wpa", year: "1935", label: "Works Progress Administration, WPA, created jobs in public works" },
+    { id: "tva", year: "1933", label: "Tennessee Valley Authority, TVA, brought jobs, power, and flood control" },
+    { id: "aaa", year: "1933", label: "Agricultural Adjustment Act, AAA, tried to raise farm prices" },
+    { id: "social-security-act", year: "1935", label: "Social Security Act created a federal safety net for older Americans" },
+    { id: "wagner-act", year: "1935", label: "Wagner Act protected workers' rights to organize" },
+    { id: "new-deal-opposition", year: "1930s", label: "New Deal critics argued over federal power and recovery" },
+    { id: "court-packing", year: "1937", label: "Court-packing controversy raised constitutional concerns" },
+    { id: "neutrality-acts", year: "1930s", label: "Neutrality Acts reflected fear of another war" },
+    { id: "germany-invades-poland", year: "1939", label: "Germany invaded Poland in 1939" },
+    { id: "britain-france-declare-war", year: "1939", label: "Britain and France declared war on Germany" },
+    { id: "isolationism-debate", year: "1939-1941", label: "Americans debated isolationism and aid" },
+    { id: "cash-and-carry", year: "1939", label: "Cash-and-carry allowed belligerents to buy supplies and transport them" },
+    { id: "arsenal-of-democracy", year: "1940", label: "Arsenal of Democracy framed U.S. industrial support for Allies" },
+    { id: "lend-lease", year: "1941", label: "Lend-Lease sent aid to nations fighting the Axis" },
+    { id: "selective-training-service-act", year: "1940", label: "Selective Training and Service Act created the first peacetime draft" },
+    { id: "pearl-harbor", year: "1941", label: "Japan attacked Pearl Harbor on December 7, 1941" },
+    { id: "us-declares-war", year: "1941", label: "The United States declared war after Pearl Harbor" },
+    { id: "war-production-board", year: "1942", label: "War Production Board directed wartime industrial conversion" },
+    { id: "office-price-administration", year: "1942", label: "Office of Price Administration managed prices and rationing" },
+    { id: "rationing", year: "1942-1945", label: "Rationing limited goods to support the war effort" },
+    { id: "war-bonds", year: "1940s", label: "War bonds helped finance federal wartime spending" },
+    { id: "rosie-women-industry", year: "1940s", label: "Rosie the Riveter symbolized women entering wartime industry" },
+    { id: "african-american-industrial-migration", year: "1940s", label: "African Americans migrated to industrial jobs while facing discrimination" },
+    { id: "japanese-american-incarceration", year: "1942", label: "Japanese American incarceration was a serious civil liberties violation" },
+    { id: "wartime-shipyard-factory-jobs", year: "1942-1945", label: "Factory and shipyard employment expanded rapidly during the war" },
+    { id: "unemployment-falls-mobilization", year: "1940s", label: "Unemployment fell as war industries and military service expanded" },
+    { id: "wwii-ends-1945", year: "1945", label: "World War II ended in 1945" }
+];
+
+const FACTS_BY_ID = Object.fromEntries(FACTS.map((fact)=> [fact.id, fact]));
+
+// APUSH timeline system: all stages, facts, choices, news, obstacles, and rewards live here.
+const APUSH_CONTENT = {
+    startingResources: {
+        money: 50,
+        food: 50,
+        hope: 60,
+        readiness: 0
+    },
+    stages: [
+        {
+            key: "crash",
+            years: "1929",
+            startYear: 1929,
+            endYear: 1929,
+            label: "1929: Stock Market Crash",
+            duration: 80,
+            visual: "city",
+            factIds: ["stock-crash-1929", "buying-on-margin", "bank-failures"],
+            narratives: [
+                { time: 2, text: "1929: Stock prices collapse.", factIds: ["stock-crash-1929"] },
+                { time: 18, text: "Buying on margin turns falling prices into deeper losses.", factIds: ["buying-on-margin"] },
+                { time: 38, text: "Many families lose savings and confidence.", factIds: ["bank-failures"] },
+                { time: 62, text: "Businesses cut jobs as panic spreads.", factIds: ["unemployment-rises"] }
+            ],
+            choices: ["savings-1929"],
+            obstacles: [
+                { label: "Margin Call", effect: { money: -7, hope: -3 }, factIds: ["buying-on-margin"] },
+                { label: "Bank Panic", effect: { money: -6, hope: -5 }, factIds: ["bank-failures"] },
+                { label: "Lost Savings", effect: { money: -8 }, factIds: ["bank-failures"] },
+                { label: "Factory Layoff", effect: { money: -5, hope: -4 }, factIds: ["unemployment-rises"] }
+            ],
+            collectibles: [
+                { label: "Bread", effect: { food: 8 }, factIds: ["breadlines"] },
+                { label: "Coins", effect: { money: 6 } },
+                { label: "Newspaper", effect: { hope: 3 }, factIds: ["stock-crash-1929"] }
+            ],
+            props: ["Stock Ticker", "Bank", "Headline"]
+        },
+        {
+            key: "deepens",
+            years: "1930-1932",
+            startYear: 1930,
+            endYear: 1932,
+            label: "1930-1932: Depression Deepens",
+            duration: 120,
+            visual: "hooverville",
+            factIds: ["unemployment-rises", "breadlines", "hoovervilles", "bank-failures"],
+            narratives: [
+                { time: 12, text: "Unemployment rises sharply.", factIds: ["unemployment-rises"] },
+                { time: 34, text: "Many families wait in breadlines.", factIds: ["breadlines"] },
+                { time: 58, text: "Temporary shelters appear after people lose homes.", factIds: ["hoovervilles"] },
+                { time: 82, text: "Local charity cannot meet the scale of the crisis.", factIds: ["breadlines"] },
+                { time: 104, text: "Bank failures wipe out savings in many communities.", factIds: ["bank-failures"] }
+            ],
+            choices: ["relief-1932"],
+            obstacles: [
+                { label: "Eviction Notice", effect: { money: -7, hope: -4 }, factIds: ["hoovervilles"] },
+                { label: "Closed Factory", effect: { money: -6, food: -3 }, factIds: ["unemployment-rises"] },
+                { label: "No Hiring", effect: { hope: -6 }, factIds: ["unemployment-rises"] },
+                { label: "Bank Failure", effect: { money: -8, hope: -3 }, factIds: ["bank-failures"] },
+                { label: "Breadline", effect: { food: -3, hope: -2 }, factIds: ["breadlines"] }
+            ],
+            collectibles: [
+                { label: "Soup Bowl", effect: { food: 8 }, factIds: ["breadlines"] },
+                { label: "Work Notice", effect: { money: 4, hope: 4 }, factIds: ["unemployment-rises"] },
+                { label: "Bread", effect: { food: 8 }, factIds: ["breadlines"] },
+                { label: "Coins", effect: { money: 6 } }
+            ],
+            props: ["Closed Factory", "Breadline", "Hooverville"]
+        },
+        {
+            key: "first-new-deal",
+            years: "1933",
+            startYear: 1933,
+            endYear: 1933,
+            label: "1933: New Deal Begins",
+            duration: 100,
+            visual: "radio",
+            factIds: ["fdr-elected-1932", "first-hundred-days", "emergency-banking-act", "bank-holiday", "fireside-chats", "fdic"],
+            narratives: [
+                { time: 4, text: "Franklin D. Roosevelt begins the New Deal.", factIds: ["fdr-elected-1932", "first-hundred-days"] },
+                { time: 22, text: "The Bank Holiday pauses banks for inspection.", factIds: ["bank-holiday"] },
+                { time: 42, text: "The Emergency Banking Act tries to restore trust.", factIds: ["emergency-banking-act"] },
+                { time: 64, text: "Fireside Chats explain government action by radio.", factIds: ["fireside-chats"] },
+                { time: 82, text: "The FDIC helps protect bank deposits.", factIds: ["fdic"] }
+            ],
+            choices: ["bank-reform-1933"],
+            obstacles: [
+                { label: "Bank Fear", effect: { hope: -6 }, factIds: ["bank-failures"] },
+                { label: "Uncertainty", effect: { hope: -4, money: -2 }, factIds: ["first-hundred-days"] },
+                { label: "Political Opposition", effect: { hope: -4 }, factIds: ["new-deal-opposition"] }
+            ],
+            collectibles: [
+                { label: "Bank Holiday Notice", effect: { hope: 5 }, factIds: ["bank-holiday"] },
+                { label: "FDIC Confidence", effect: { hope: 8 }, factIds: ["fdic"] },
+                { label: "Relief Application", effect: { food: 6, hope: 3 }, factIds: ["first-hundred-days"] },
+                { label: "Coins", effect: { money: 6 } }
+            ],
+            props: ["Radio", "Reopened Bank", "Notice Board"]
+        },
+        {
+            key: "work-relief",
+            years: "1933-1935",
+            startYear: 1933,
+            endYear: 1935,
+            label: "1933-1935: Relief and Work Programs",
+            duration: 135,
+            visual: "public-works",
+            factIds: ["ccc", "cwa", "pwa", "wpa", "tva", "aaa"],
+            narratives: [
+                { time: 10, text: "The CCC hires young men for conservation work.", factIds: ["ccc"] },
+                { time: 32, text: "The CWA creates short-term emergency jobs.", factIds: ["cwa"] },
+                { time: 54, text: "The PWA funds large bridges, schools, and public buildings.", factIds: ["pwa"] },
+                { time: 78, text: "The TVA brings jobs, electricity, and flood control.", factIds: ["tva"] },
+                { time: 102, text: "The WPA creates jobs building roads, parks, and public buildings.", factIds: ["wpa"] },
+                { time: 122, text: "The AAA tries to raise farm prices, but its effects are uneven.", factIds: ["aaa"] }
+            ],
+            choices: ["wpa-job-1935"],
+            obstacles: [
+                { label: "Unemployment", effect: { money: -5, hope: -4 }, factIds: ["unemployment-rises"] },
+                { label: "Low Wages", effect: { money: -5 }, factIds: ["wpa"] },
+                { label: "Slow Recovery", effect: { hope: -5 }, factIds: ["new-deal-opposition"] },
+                { label: "Critics of New Deal", effect: { hope: -4 }, factIds: ["new-deal-opposition"] }
+            ],
+            collectibles: [
+                { label: "CCC Job Card", effect: { money: 7, hope: 7 }, factIds: ["ccc"] },
+                { label: "CWA Work Crew", effect: { money: 6, food: 4 }, factIds: ["cwa"] },
+                { label: "PWA Project", effect: { money: 6, hope: 5 }, factIds: ["pwa"] },
+                { label: "WPA Paycheck", effect: { money: 8, food: 6, hope: 8 }, factIds: ["wpa"] },
+                { label: "TVA Power", effect: { hope: 9 }, factIds: ["tva"] },
+                { label: "AAA Aid Notice", effect: { money: 5, hope: 3 }, factIds: ["aaa"] }
+            ],
+            props: ["CCC Camp", "WPA Crew", "TVA Lines"]
+        },
+        {
+            key: "reform-debate",
+            years: "1935-1937",
+            startYear: 1935,
+            endYear: 1937,
+            label: "1935-1937: Reform and Debate",
+            duration: 95,
+            visual: "capitol",
+            factIds: ["social-security-act", "wagner-act", "new-deal-opposition", "court-packing"],
+            narratives: [
+                { time: 8, text: "Social Security creates a federal safety net for older Americans.", factIds: ["social-security-act"] },
+                { time: 30, text: "The Wagner Act protects workers' rights to organize.", factIds: ["wagner-act"] },
+                { time: 52, text: "New Deal critics debate federal power, costs, and recovery.", factIds: ["new-deal-opposition"] },
+                { time: 74, text: "The court-packing controversy raises constitutional concerns.", factIds: ["court-packing"] }
+            ],
+            choices: ["union-1935"],
+            obstacles: [
+                { label: "Court Challenge", effect: { hope: -5 }, factIds: ["court-packing"] },
+                { label: "Employer Pressure", effect: { money: -4, hope: -3 }, factIds: ["wagner-act"] },
+                { label: "Political Opposition", effect: { hope: -4 }, factIds: ["new-deal-opposition"] }
+            ],
+            collectibles: [
+                { label: "Social Security Card", effect: { hope: 9 }, factIds: ["social-security-act"] },
+                { label: "Wagner Act Notice", effect: { hope: 8 }, factIds: ["wagner-act"] },
+                { label: "Worker Voice", effect: { hope: 6, money: 3 }, factIds: ["wagner-act"] },
+                { label: "Relief Check", effect: { money: 6, food: 4 }, factIds: ["social-security-act"] }
+            ],
+            props: ["Safety Net", "Union Hall", "Court"]
+        },
+        {
+            key: "migration",
+            years: "1934-1938",
+            startYear: 1934,
+            endYear: 1938,
+            label: "1934-1938: Land, Debt, and Migration",
+            duration: 110,
+            visual: "dry-farm",
+            factIds: ["farm-foreclosures", "dry-dust-bowl-conditions", "migration-west", "aaa"],
+            narratives: [
+                { time: 8, text: "The land dries and crops fail.", factIds: ["dry-dust-bowl-conditions"] },
+                { time: 30, text: "Farm families face debt and foreclosure.", factIds: ["farm-foreclosures"] },
+                { time: 52, text: "Some families leave home in search of work.", factIds: ["migration-west"] },
+                { time: 84, text: "Migration can mean survival, but also hardship.", factIds: ["migration-west"] }
+            ],
+            choices: ["migration-west-1936", "farm-aid-1937"],
+            obstacles: [
+                { label: "Dust Cloud", effect: { food: -5, hope: -3 }, factIds: ["dry-dust-bowl-conditions"] },
+                { label: "Failed Crop", effect: { food: -7 }, factIds: ["dry-dust-bowl-conditions"] },
+                { label: "Farm Auction", effect: { money: -6, hope: -4 }, factIds: ["farm-foreclosures"] },
+                { label: "Mortgage Due", effect: { money: -7 }, factIds: ["farm-foreclosures"] },
+                { label: "Crowded Camp", effect: { hope: -5 }, factIds: ["migration-west"] }
+            ],
+            collectibles: [
+                { label: "Water Can", effect: { food: 7, hope: 3 }, factIds: ["dry-dust-bowl-conditions"] },
+                { label: "Map West", effect: { hope: 7 }, factIds: ["migration-west"] },
+                { label: "Work Flyer", effect: { money: 5, hope: 4 }, factIds: ["migration-west"] },
+                { label: "Bread", effect: { food: 8 } }
+            ],
+            props: ["Cracked Soil", "Packed Truck", "Road West"]
+        },
+        {
+            key: "war-abroad",
+            years: "1939-1940",
+            startYear: 1939,
+            endYear: 1940,
+            label: "1939-1940: War Abroad, Caution at Home",
+            duration: 95,
+            visual: "news",
+            factIds: ["neutrality-acts", "germany-invades-poland", "britain-france-declare-war", "isolationism-debate", "cash-and-carry"],
+            narratives: [
+                { time: 6, text: "1939: War begins in Europe.", factIds: ["germany-invades-poland"] },
+                { time: 28, text: "The United States does not immediately enter the war.", factIds: ["neutrality-acts"] },
+                { time: 50, text: "Neutrality and aid debates grow louder.", factIds: ["isolationism-debate"] },
+                { time: 72, text: "Cash-and-carry expands aid while preserving distance.", factIds: ["cash-and-carry"] }
+            ],
+            news: [
+                { time: 12, text: "News from Europe: Nazi Germany invades Poland.", factIds: ["germany-invades-poland"] },
+                { time: 32, text: "Britain and France declare war.", factIds: ["britain-france-declare-war"] },
+                { time: 54, text: "The U.S. debates neutrality.", factIds: ["neutrality-acts", "isolationism-debate"] },
+                { time: 76, text: "Defense orders begin to grow.", factIds: ["cash-and-carry"] }
+            ],
+            choices: ["neutrality-1940"],
+            obstacles: [
+                { label: "War Headline", effect: { hope: -4 }, factIds: ["germany-invades-poland"] },
+                { label: "Isolationist Pressure", effect: { readiness: -4, hope: -2 }, factIds: ["isolationism-debate"] },
+                { label: "Fear of War", effect: { hope: -5 }, factIds: ["neutrality-acts"] },
+                { label: "Uncertainty", effect: { money: -3, hope: -3 }, factIds: ["isolationism-debate"] }
+            ],
+            collectibles: [
+                { label: "Newspaper", effect: { hope: 3 }, factIds: ["germany-invades-poland"] },
+                { label: "Radio Bulletin", effect: { hope: 3 }, factIds: ["britain-france-declare-war"] },
+                { label: "Defense Order", effect: { money: 6, readiness: 6 }, factIds: ["cash-and-carry"] },
+                { label: "Factory Notice", effect: { money: 5, hope: 4 }, factIds: ["cash-and-carry"] }
+            ],
+            props: ["Radio Tower", "Newsstand", "Factory Notice"]
+        },
+        {
+            key: "arsenal",
+            years: "1940-1941",
+            startYear: 1940,
+            endYear: 1941,
+            label: "1940-1941: Arsenal of Democracy",
+            duration: 95,
+            visual: "defense",
+            factIds: ["arsenal-of-democracy", "lend-lease", "selective-training-service-act", "isolationism-debate"],
+            narratives: [
+                { time: 8, text: "Defense industries expand before formal U.S. entry.", factIds: ["arsenal-of-democracy"] },
+                { time: 28, text: "Lend-Lease sends aid to nations fighting the Axis.", factIds: ["lend-lease"] },
+                { time: 50, text: "Factory jobs begin pulling more Americans into paid work.", factIds: ["wartime-shipyard-factory-jobs"] },
+                { time: 72, text: "The U.S. becomes the Arsenal of Democracy.", factIds: ["arsenal-of-democracy"] }
+            ],
+            news: [
+                { time: 24, text: "Lend-Lease sends aid overseas.", factIds: ["lend-lease"] }
+            ],
+            choices: ["defense-work-1941"],
+            obstacles: [
+                { label: "Isolationism", effect: { readiness: -5 }, factIds: ["isolationism-debate"] },
+                { label: "Supply Shortage", effect: { money: -4, readiness: -3 }, factIds: ["arsenal-of-democracy"] },
+                { label: "Global Tension", effect: { hope: -5 }, factIds: ["lend-lease"] },
+                { label: "Long Factory Hours", effect: { hope: -3, food: -2 }, factIds: ["wartime-shipyard-factory-jobs"] }
+            ],
+            collectibles: [
+                { label: "Defense Job", effect: { money: 8, food: 4, readiness: 6 }, factIds: ["arsenal-of-democracy"] },
+                { label: "Factory Paycheck", effect: { money: 8, food: 6 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "Lend-Lease Crate", effect: { readiness: 10, hope: 3 }, factIds: ["lend-lease"] },
+                { label: "Training Notice", effect: { readiness: 8 }, factIds: ["selective-training-service-act"] },
+                { label: "War Bond", effect: { readiness: 7, hope: 4 }, factIds: ["war-bonds"] }
+            ],
+            props: ["Shipyard", "Assembly Line", "Defense Poster"]
+        },
+        {
+            key: "pearl-harbor",
+            years: "Dec. 1941",
+            startYear: 1941,
+            endYear: 1941,
+            label: "December 1941: U.S. Enters World War II",
+            duration: 60,
+            visual: "alert",
+            factIds: ["pearl-harbor", "us-declares-war"],
+            narratives: [
+                { time: 4, text: "December 7, 1941: Japan attacks Pearl Harbor.", factIds: ["pearl-harbor"] },
+                { time: 24, text: "The United States declares war.", factIds: ["us-declares-war"] },
+                { time: 44, text: "The story continues into wartime mobilization.", factIds: ["war-production-board"] }
+            ],
+            news: [
+                { time: 8, text: "Radio Alert: Japan attacks Pearl Harbor.", factIds: ["pearl-harbor"] },
+                { time: 30, text: "Congress declares war.", factIds: ["us-declares-war"] }
+            ],
+            choices: [],
+            obstacles: [
+                { label: "War Anxiety", effect: { hope: -6 }, factIds: ["pearl-harbor"] },
+                { label: "Family Separation", effect: { hope: -5 }, factIds: ["us-declares-war"] },
+                { label: "Mobilization Rush", effect: { food: -3, readiness: 2 }, factIds: ["us-declares-war"] }
+            ],
+            collectibles: [
+                { label: "War Readiness", effect: { readiness: 10 }, factIds: ["us-declares-war"] },
+                { label: "Factory Notice", effect: { money: 6, readiness: 5 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "Radio Update", effect: { hope: 3 }, factIds: ["pearl-harbor"] }
+            ],
+            props: ["Radio Alert", "Congress", "Mobilization"]
+        },
+        {
+            key: "mobilization",
+            years: "1942-1944",
+            startYear: 1942,
+            endYear: 1944,
+            label: "1942-1944: Wartime Mobilization",
+            duration: 150,
+            visual: "wartime",
+            factIds: ["war-production-board", "office-price-administration", "rationing", "war-bonds", "rosie-women-industry", "african-american-industrial-migration", "japanese-american-incarceration", "wartime-shipyard-factory-jobs", "unemployment-falls-mobilization"],
+            narratives: [
+                { time: 8, text: "Wartime production creates millions of jobs.", factIds: ["wartime-shipyard-factory-jobs", "unemployment-falls-mobilization"] },
+                { time: 26, text: "Factories shift from consumer goods to planes, ships, tanks, and weapons.", factIds: ["war-production-board"] },
+                { time: 46, text: "Women enter industrial jobs in large numbers.", factIds: ["rosie-women-industry"] },
+                { time: 66, text: "African Americans move to industrial jobs while facing discrimination.", factIds: ["african-american-industrial-migration"] },
+                { time: 88, text: "Japanese American incarceration violates civil liberties.", factIds: ["japanese-american-incarceration"] },
+                { time: 108, text: "Rationing limits goods so supplies can support the war effort.", factIds: ["rationing", "office-price-administration"] },
+                { time: 128, text: "The Depression fades as wartime demand transforms the economy.", factIds: ["unemployment-falls-mobilization"] }
+            ],
+            news: [
+                { time: 16, text: "Factories expand for wartime production.", factIds: ["war-production-board"] },
+                { time: 58, text: "Millions find work in war industries.", factIds: ["wartime-shipyard-factory-jobs", "unemployment-falls-mobilization"] }
+            ],
+            choices: ["shipyard-1942", "war-bonds-1943", "rationing-1943"],
+            obstacles: [
+                { label: "Ration Limits", effect: { food: -5 }, factIds: ["rationing"] },
+                { label: "Long Hours", effect: { hope: -4, food: -2 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "Family Separation", effect: { hope: -5 }, factIds: ["us-declares-war"] },
+                { label: "Housing Shortage", effect: { money: -5, hope: -3 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "Discrimination", effect: { hope: -6 }, factIds: ["african-american-industrial-migration"] },
+                { label: "Civil Liberties Crisis", effect: { hope: -6 }, factIds: ["japanese-american-incarceration"] },
+                { label: "Labor Strain", effect: { food: -3, hope: -3 }, factIds: ["wartime-shipyard-factory-jobs"] }
+            ],
+            collectibles: [
+                { label: "Factory Paycheck", effect: { money: 9, food: 5 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "War Job", effect: { money: 9, hope: 6 }, factIds: ["unemployment-falls-mobilization"] },
+                { label: "Rosie Poster", effect: { hope: 8 }, factIds: ["rosie-women-industry"] },
+                { label: "War Bond", effect: { readiness: 9, hope: 4 }, factIds: ["war-bonds"] },
+                { label: "Ration Book", effect: { food: 8, readiness: 6 }, factIds: ["rationing"] },
+                { label: "Shipyard Job", effect: { money: 9, readiness: 5 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "WPB Contract", effect: { money: 8, readiness: 8 }, factIds: ["war-production-board"] },
+                { label: "OPA Price Control", effect: { food: 7, hope: 3 }, factIds: ["office-price-administration"] }
+            ],
+            props: ["Shipyard Jobs", "Ration Board", "War Bonds"]
+        },
+        {
+            key: "war-ends",
+            years: "1945",
+            startYear: 1945,
+            endYear: 1945,
+            label: "1945: War Ends and Reflection",
+            duration: 60,
+            visual: "sunrise",
+            factIds: ["wwii-ends-1945", "unemployment-falls-mobilization", "war-production-board", "wartime-shipyard-factory-jobs"],
+            narratives: [
+                { time: 4, text: "1945: World War II ends.", factIds: ["wwii-ends-1945"] },
+                { time: 20, text: "Wartime production helped end mass unemployment.", factIds: ["unemployment-falls-mobilization"] },
+                { time: 36, text: "Federal spending and industrial mobilization transformed the economy.", factIds: ["war-production-board"] },
+                { time: 50, text: "The Depression years changed expectations of government.", factIds: ["first-hundred-days", "social-security-act"] }
+            ],
+            choices: [],
+            obstacles: [
+                { label: "War Cost", effect: { hope: -4 }, factIds: ["wwii-ends-1945"] },
+                { label: "Unequal Opportunity", effect: { hope: -4 }, factIds: ["african-american-industrial-migration"] },
+                { label: "Transition Home", effect: { money: -3, hope: -2 }, factIds: ["wwii-ends-1945"] }
+            ],
+            collectibles: [
+                { label: "War Ends Headline", effect: { hope: 10 }, factIds: ["wwii-ends-1945"] },
+                { label: "Factory Lights", effect: { money: 6, hope: 6 }, factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "Homecoming", effect: { hope: 8 }, factIds: ["wwii-ends-1945"] }
+            ],
+            props: ["War Ends", "Factory Lights", "Sunrise"]
+        }
+    ],
+    choices: [
+        {
+            id: "savings-1929",
+            stage: "crash",
+            time: 50,
+            prompt: "Your family has some savings left after the crash.",
+            factIds: ["stock-crash-1929", "bank-failures"],
+            options: [
+                { label: "I want to keep savings in the bank", effect: { hope: 6 }, consequence: "You preserve confidence, but bank failures remain a risk.", factIds: ["bank-failures"] },
+                { label: "I want to buy food and supplies", effect: { food: 12, money: -8 }, consequence: "The pantry is steadier, but cash is harder to replace.", factIds: ["breadlines"] }
+            ]
+        },
+        {
+            id: "relief-1932",
+            stage: "deepens",
+            time: 58,
+            prompt: "You cannot find steady work.",
+            factIds: ["unemployment-rises", "breadlines"],
+            options: [
+                { label: "I want to wait for private work", effect: { hope: 5, food: -8 }, consequence: "You keep searching, but hunger grows while jobs are scarce.", factIds: ["unemployment-rises"] },
+                { label: "I want to seek emergency relief", effect: { food: 12, hope: -3 }, consequence: "Relief helps, but aid is limited and often stigmatized.", factIds: ["breadlines"] }
+            ]
+        },
+        {
+            id: "bank-reform-1933",
+            stage: "first-new-deal",
+            time: 46,
+            prompt: "FDR announces banking reforms.",
+            factIds: ["emergency-banking-act", "fdic"],
+            options: [
+                { label: "I want to trust the reopened banks", effect: { hope: 10, money: 5 }, consequence: "Bank reform and deposit insurance strengthen confidence.", factIds: ["bank-holiday", "fdic"] },
+                { label: "I want to keep cash hidden", effect: { money: 4, hope: -6 }, consequence: "Cash feels safer now, but confidence recovers more slowly.", factIds: ["bank-failures"] }
+            ]
+        },
+        {
+            id: "wpa-job-1935",
+            stage: "work-relief",
+            time: 60,
+            prompt: "A WPA job is available far from home.",
+            factIds: ["wpa"],
+            options: [
+                { label: "I want to take the WPA job", effect: { money: 14, food: 8, hope: 10 }, consequence: "A public job brings wages, food, and dignity.", factIds: ["wpa"] },
+                { label: "I want to keep searching independently", effect: { hope: 5, money: -7 }, consequence: "Independence matters, but steady pay remains uncertain.", factIds: ["unemployment-rises"] }
+            ]
+        },
+        {
+            id: "union-1935",
+            stage: "reform-debate",
+            time: 42,
+            prompt: "A labor organizer asks workers to join together.",
+            factIds: ["wagner-act"],
+            options: [
+                { label: "I want to support union organizing", effect: { hope: 10, money: 4 }, consequence: "Worker voice grows under the Wagner Act, though conflict may follow.", factIds: ["wagner-act"] },
+                { label: "I want to avoid conflict with my employer", effect: { money: 5, hope: -6 }, consequence: "You reduce immediate risk but lose some collective power.", factIds: ["wagner-act"] }
+            ]
+        },
+        {
+            id: "migration-west-1936",
+            stage: "migration",
+            time: 38,
+            prompt: "Your farm cannot support your family anymore.",
+            factIds: ["dry-dust-bowl-conditions", "migration-west"],
+            options: [
+                { label: "I want to leave for the West", effect: { money: -8, hope: 10 }, consequence: "The road offers possibility, but travel and crowded camps are costly.", factIds: ["migration-west"] },
+                { label: "I want to stay and try again", effect: { food: -10, hope: 5 }, consequence: "Home remains meaningful, but another failed crop hurts.", factIds: ["farm-foreclosures"] }
+            ]
+        },
+        {
+            id: "farm-aid-1937",
+            stage: "migration",
+            time: 82,
+            prompt: "A government farm program offers aid.",
+            factIds: ["aaa"],
+            options: [
+                { label: "I want to accept agricultural support", effect: { money: 8, hope: 7 }, consequence: "Aid helps some farmers, though benefits are uneven.", factIds: ["aaa"] },
+                { label: "I want to refuse and remain independent", effect: { hope: 5, food: -7, money: -4 }, consequence: "You keep independence, but the farm remains under pressure.", factIds: ["farm-foreclosures"] }
+            ]
+        },
+        {
+            id: "neutrality-1940",
+            stage: "war-abroad",
+            time: 50,
+            prompt: "War spreads in Europe.",
+            factIds: ["neutrality-acts", "isolationism-debate"],
+            options: [
+                { label: "I want to support strict neutrality", effect: { hope: 6, readiness: -8 }, consequence: "Many Americans share this caution after World War I.", factIds: ["neutrality-acts", "isolationism-debate"] },
+                { label: "I want to support defense preparation", effect: { money: 8, readiness: 12, hope: -2 }, consequence: "Defense orders create work, but fear of war grows.", factIds: ["cash-and-carry", "arsenal-of-democracy"] }
+            ]
+        },
+        {
+            id: "defense-work-1941",
+            stage: "arsenal",
+            time: 44,
+            prompt: "A defense factory is hiring.",
+            factIds: ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"],
+            options: [
+                { label: "I want to take the factory job", effect: { money: 14, food: 8, readiness: 10, hope: -3 }, consequence: "The wages help, but long hours and tension weigh on the family.", factIds: ["arsenal-of-democracy"] },
+                { label: "I want to avoid war industries", effect: { hope: 5, money: -8, readiness: -8 }, consequence: "You avoid war work, but miss the growing defense economy.", factIds: ["isolationism-debate"] }
+            ]
+        },
+        {
+            id: "shipyard-1942",
+            stage: "mobilization",
+            time: 28,
+            prompt: "A shipyard job opens in a crowded city.",
+            factIds: ["wartime-shipyard-factory-jobs", "unemployment-falls-mobilization"],
+            options: [
+                { label: "I want to move for war work", effect: { money: 14, food: 8, readiness: 8, hope: -3 }, consequence: "War work brings pay, but housing stress follows migrants.", factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "I want to stay home", effect: { hope: 5, money: -8 }, consequence: "Staying protects routine, but the biggest job growth is elsewhere.", factIds: ["unemployment-falls-mobilization"] }
+            ]
+        },
+        {
+            id: "war-bonds-1943",
+            stage: "mobilization",
+            time: 72,
+            prompt: "The government asks families to buy war bonds.",
+            factIds: ["war-bonds"],
+            options: [
+                { label: "I want to buy war bonds", effect: { money: -8, readiness: 12, hope: 7 }, consequence: "You sacrifice money now to support federal war spending.", factIds: ["war-bonds"] },
+                { label: "I want to save every dollar", effect: { money: 8, readiness: -7 }, consequence: "Savings stay close, but the war effort receives less support.", factIds: ["war-bonds"] }
+            ]
+        },
+        {
+            id: "rationing-1943",
+            stage: "mobilization",
+            time: 112,
+            prompt: "Rationing begins.",
+            factIds: ["rationing", "office-price-administration"],
+            options: [
+                { label: "I want to follow ration rules", effect: { readiness: 10, food: 7 }, consequence: "Rationing stretches supplies and supports the war effort.", factIds: ["rationing", "office-price-administration"] },
+                { label: "I want to ignore rationing", effect: { food: 8, hope: -7, readiness: -10 }, consequence: "Short-term food improves, but community trust and readiness fall.", factIds: ["rationing"] }
+            ]
+        }
+    ]
+};
+
+function miniGameVariant(id, mode, prompt){
+    const text = `${id} ${mode} ${prompt}`;
+    if(/Match|Safety Net|FDIC|Lend-Lease|policy|agency/i.test(text)) return "match";
+    if(/News|Radio|Pearl|War Ends|sequence|Reflection|Final/i.test(text)) return "timeline";
+    if(/Bond|Ration|Readiness|Job|Work|Factory|Tradeoff|Shelter|Debt|Savings/i.test(text)) return "balance";
+    if(/Civil Liberties|Migration|Hooverville|Farm|Court|Worker/i.test(text)) return "map";
+    return "evidence";
+}
+
+function miniGameChips(variant){
+    if(variant == "match") return ["Policy", "Purpose", "Who it helped", "Consequence"];
+    if(variant == "timeline") return ["Cause", "Event", "Immediate result", "Long-term effect"];
+    if(variant == "balance") return ["Money", "Food", "Hope", "War readiness"];
+    if(variant == "map") return ["Family", "Government", "Workplace", "Community"];
+    return ["Cause", "Evidence", "Tradeoff", "Consequence"];
+}
+
+function eventIcon(label, factIds = []){
+    const text = `${label} ${factIds.join(" ")}`;
+    if(/bank|fdic|holiday|savings/i.test(text)) return "bank";
+    if(/bread|relief|food|ration|opa/i.test(text)) return "bread";
+    if(/farm|dry|migration|foreclosure|dust/i.test(text)) return "truck";
+    if(/radio|fireside|news|pearl|poland|war|lend|congress/i.test(text)) return "radio";
+    if(/factory|wpa|ccc|cwa|pwa|tva|work|job|wpb|shipyard|rosie/i.test(text)) return "factory";
+    if(/court|wagner|social|security|civil|incarceration/i.test(text)) return "document";
+    if(/bond|money|crash|margin|stock/i.test(text)) return "coins";
+    return "document";
+}
+
+function historicalImageFor(factIds = [], prompt = ""){
+    const text = `${factIds.join(" ")} ${prompt}`;
+    if(/stock-crash|buying-on-margin|crash|margin|stock|market crashes/i.test(text)) return HISTORICAL_IMAGES.crash;
+    if(/pearl-harbor|declares-war|Pearl Harbor/i.test(text)) return HISTORICAL_IMAGES.pearlHarbor;
+    if(/wwii-ends|war ends|1945|Final Balance|Historical Reflection/i.test(text)) return HISTORICAL_IMAGES.warEnds;
+    if(/japanese-american-incarceration|civil liberties|incarceration/i.test(text)) return HISTORICAL_IMAGES.incarceration;
+    if(/rationing|office-price-administration|OPA|ration/i.test(text)) return HISTORICAL_IMAGES.rationing;
+    if(/rosie|women|war-production-board|shipyard|factory|wartime-shipyard|unemployment-falls|mobilization|war bonds|bond/i.test(text)) return HISTORICAL_IMAGES.rosie;
+    if(/lend-lease|arsenal-of-democracy|selective-training|defense|readiness/i.test(text)) return HISTORICAL_IMAGES.lendLease;
+    if(/germany-invades-poland|britain-france|neutrality|cash-and-carry|isolationism|Europe/i.test(text)) return HISTORICAL_IMAGES.europeWar;
+    if(/migration-west|Migrant|West/i.test(text)) return HISTORICAL_IMAGES.migration;
+    if(/dry-dust-bowl|farm-foreclosures|aaa|farm|crop|auction|Dust/i.test(text)) return HISTORICAL_IMAGES.dust;
+    if(/social-security|wagner-act|court-packing|new-deal-opposition|Worker Voice|Safety Net/i.test(text)) return HISTORICAL_IMAGES.socialSecurity;
+    if(/wpa|pwa|tva|cwa|public works|work program/i.test(text)) return HISTORICAL_IMAGES.wpa;
+    if(/ccc|conservation/i.test(text)) return HISTORICAL_IMAGES.ccc;
+    if(/fdr-elected|first-hundred-days|fireside|Franklin D. Roosevelt|FDR/i.test(text)) return HISTORICAL_IMAGES.fdr;
+    if(/hoovervilles|shelter|eviction/i.test(text)) return HISTORICAL_IMAGES.hooverville;
+    if(/breadlines|unemployment-rises|relief|food|Bread/i.test(text)) return HISTORICAL_IMAGES.breadline;
+    if(/bank-failures|fdic|bank-holiday|emergency-banking|bank|deposit/i.test(text)) return HISTORICAL_IMAGES.bank;
+    return HISTORICAL_IMAGES.crash;
+}
+
+function eventLane(event){
+    const text = `${event.label} ${(event.factIds || []).join(" ")}`;
+    if(/radio|headline|pearl|poland|war ends|congress|fireside|news/i.test(text)) return "slide";
+    if(/bread|bank|factory|job|farm|wpa|ccc|pwa|tva|wpb|ration|bond/i.test(text)) return "jump";
+    const hash = Array.from(event.label).reduce((sum, char)=> sum + char.charCodeAt(0), 0);
+    return hash % 2 ? "slide" : "jump";
+}
+
+function miniGame(id, mode, prompt, instructions, factIds, options){
+    const variant = miniGameVariant(id, mode, prompt);
+    return {
+        id,
+        mode,
+        prompt,
+        instructions,
+        factIds,
+        options,
+        variant,
+        visual: eventIcon(prompt, factIds),
+        image: historicalImageFor(factIds, prompt),
+        chips: miniGameChips(variant)
+    };
+}
+
+function yearEvent(time, label, description, factIds, game){
+    return { time, label, description, factIds, miniGame: game, icon: eventIcon(label, factIds) };
+}
+
+function annualStage(year, label, visual, props, events, collectibles = []){
+    const factSet = new Set();
+    for(let event of events){
+        for(let factId of event.factIds || []) factSet.add(factId);
+        if(event.miniGame){
+            for(let factId of event.miniGame.factIds || []) factSet.add(factId);
+            for(let option of event.miniGame.options || []){
+                for(let factId of option.factIds || []) factSet.add(factId);
+            }
+        }
+    }
+    return {
+        key: `year-${year}`,
+        years: `${year}`,
+        startYear: year,
+        endYear: year,
+        label: `${year}: ${label}`,
+        duration: YEAR_DURATION_SECONDS,
+        visual,
+        factIds: Array.from(factSet),
+        narratives: events.map((event)=> ({
+            time: Math.max(1, event.time - 0.8),
+            text: `${year}: ${event.description}`,
+            factIds: event.factIds
+        })),
+        news: events
+            .filter((event)=> event.label.includes("Pearl Harbor") || event.label.includes("Poland") || event.label.includes("War Ends"))
+            .map((event)=> ({
+                time: event.time,
+                text: event.label.includes("Pearl Harbor")
+                    ? "Radio Alert: Japan attacks Pearl Harbor."
+                    : event.label.includes("Poland")
+                        ? "News from Europe: Nazi Germany invades Poland."
+                        : "Headline: World War II ends in 1945.",
+                factIds: event.factIds
+            })),
+        choices: [],
+        obstacles: [],
+        collectibles,
+        props,
+        events
+    };
+}
+
+const YEARLY_STAGES = [
+    annualStage(1929, "Crash and Panic", "city", ["Stock Ticker", "Bank", "Headline"], [
+        yearEvent(3, "Stock Market Crash", "Stock prices collapse after a speculative boom.", ["stock-crash-1929"], miniGame(
+            "mg-1929-crash",
+            "Mini-Game: Crash Response",
+            "The market crashes and confidence breaks.",
+            "Choose the response that keeps the family most stable.",
+            ["stock-crash-1929"],
+            [
+                { label: "I want to sell what we can and buy food", effect: { food: 8, money: -4 }, consequence: "Food security rises, but cash gets tighter.", factIds: ["stock-crash-1929"] },
+                { label: "I want to buy more stock on credit", effect: { money: -10, hope: -5 }, consequence: "Margin-style risk deepens the loss.", factIds: ["buying-on-margin"] }
+            ]
+        )),
+        yearEvent(8, "Buying on Margin", "Buying with borrowed money turns falling prices into deeper losses.", ["buying-on-margin"], miniGame(
+            "mg-1929-margin",
+            "Mini-Game: Spot the Risk",
+            "A neighbor says stocks will bounce back if everyone borrows more.",
+            "Pick the historically safer explanation.",
+            ["buying-on-margin"],
+            [
+                { label: "I think borrowing makes the losses worse", effect: { hope: 6 }, consequence: "Correct: margin buying made collapse more dangerous.", factIds: ["buying-on-margin"] },
+                { label: "I think borrowing makes stocks safe", effect: { money: -6, hope: -3 }, consequence: "That mistake was part of the danger.", factIds: ["buying-on-margin"] }
+            ]
+        ))
+    ], [
+        { label: "Coins", effect: { money: 6 } },
+        { label: "Bread", effect: { food: 8 } },
+        { label: "Newspaper", effect: { hope: 3 }, factIds: ["stock-crash-1929"] }
+    ]),
+    annualStage(1930, "Banks and Breadlines", "hooverville", ["Closed Bank", "Breadline", "Empty Store"], [
+        yearEvent(4, "Bank Failures", "Bank failures spread fear and erase savings.", ["bank-failures"], miniGame(
+            "mg-1930-bank",
+            "Mini-Game: Savings Choice",
+            "A local bank looks shaky.",
+            "Choose a tradeoff for your family's savings.",
+            ["bank-failures"],
+            [
+                { label: "I want to keep some cash for essentials", effect: { food: 6, money: -2 }, consequence: "You protect daily needs but have less cash.", factIds: ["bank-failures"] },
+                { label: "I want to leave all our savings in the bank", effect: { hope: 4, money: -6 }, consequence: "Confidence helps, but failures can still wipe out deposits.", factIds: ["bank-failures"] }
+            ]
+        )),
+        yearEvent(9, "Breadlines", "Many families rely on breadlines and local relief.", ["breadlines"], miniGame(
+            "mg-1930-breadline",
+            "Mini-Game: Relief Line",
+            "The breadline is long and work is scarce.",
+            "Pick the action that protects food without pretending relief is enough.",
+            ["breadlines"],
+            [
+                { label: "I want to accept relief and keep looking for work", effect: { food: 10, hope: 2 }, consequence: "Relief helps survival while work remains uncertain.", factIds: ["breadlines", "unemployment-rises"] },
+                { label: "I want to refuse relief completely", effect: { food: -8, hope: 3 }, consequence: "Pride remains, but hunger grows.", factIds: ["breadlines"] }
+            ]
+        ))
+    ], [
+        { label: "Soup Bowl", effect: { food: 8 }, factIds: ["breadlines"] },
+        { label: "Bread", effect: { food: 8 }, factIds: ["breadlines"] },
+        { label: "Coins", effect: { money: 6 } }
+    ]),
+    annualStage(1931, "Unemployment and Hoovervilles", "hooverville", ["No Hiring", "Shelter", "Factory Gate"], [
+        yearEvent(4, "Unemployment Rises", "Factories close and unemployment climbs.", ["unemployment-rises"], miniGame(
+            "mg-1931-work",
+            "Mini-Game: Job Search",
+            "No steady work is available nearby.",
+            "Choose how to spend limited time and food.",
+            ["unemployment-rises"],
+            [
+                { label: "I will search every day and ration meals", effect: { hope: 5, food: -4 }, consequence: "Hope stays alive, but meals shrink.", factIds: ["unemployment-rises"] },
+                { label: "I will stop searching for now", effect: { food: 2, hope: -8 }, consequence: "You save energy, but discouragement spreads.", factIds: ["unemployment-rises"] }
+            ]
+        )),
+        yearEvent(9, "Hoovervilles", "Temporary shelters appear as families lose homes.", ["hoovervilles"], miniGame(
+            "mg-1931-hooverville",
+            "Mini-Game: Shelter Tradeoff",
+            "Rent is due and cash is nearly gone.",
+            "Choose the least damaging option.",
+            ["hoovervilles"],
+            [
+                { label: "I want to share shelter with relatives", effect: { money: 4, hope: 2 }, consequence: "Crowding is hard, but support networks matter.", factIds: ["hoovervilles"] },
+                { label: "I want to spend all our savings on rent", effect: { money: -10, hope: 4 }, consequence: "Housing lasts a little longer, but savings vanish.", factIds: ["hoovervilles"] }
+            ]
+        ))
+    ], [
+        { label: "Work Notice", effect: { money: 4, hope: 4 }, factIds: ["unemployment-rises"] },
+        { label: "Soup Bowl", effect: { food: 8 }, factIds: ["breadlines"] }
+    ]),
+    annualStage(1932, "Election and Demands for Action", "radio", ["Campaign Radio", "Relief Office", "Ballot"], [
+        yearEvent(4, "FDR Elected", "Franklin D. Roosevelt wins the 1932 election promising a New Deal.", ["fdr-elected-1932"], miniGame(
+            "mg-1932-election",
+            "Mini-Game: Read the Promise",
+            "Voters hear promises of relief, recovery, and reform.",
+            "Choose the best summary of what people expected.",
+            ["fdr-elected-1932"],
+            [
+                { label: "I want the federal government to do more", effect: { hope: 8 }, consequence: "The election signals demand for stronger federal response.", factIds: ["fdr-elected-1932"] },
+                { label: "I want things to stay the same", effect: { hope: -6 }, consequence: "That misses why many voters turned to Roosevelt.", factIds: ["fdr-elected-1932"] }
+            ]
+        )),
+        yearEvent(9, "Emergency Relief Pressure", "Private charity cannot meet the scale of the crisis.", ["breadlines", "unemployment-rises"], miniGame(
+            "mg-1932-relief",
+            "Mini-Game: Relief Request",
+            "Your family needs food before steady work returns.",
+            "Choose a realistic survival strategy.",
+            ["breadlines"],
+            [
+                { label: "I want to ask for emergency relief", effect: { food: 10, hope: -2 }, consequence: "Relief helps, though stigma and limits remain.", factIds: ["breadlines"] },
+                { label: "I want to wait for private charity only", effect: { food: -7, hope: 2 }, consequence: "Local aid is overwhelmed.", factIds: ["breadlines"] }
+            ]
+        ))
+    ], [
+        { label: "Relief Application", effect: { food: 6, hope: 3 }, factIds: ["breadlines"] },
+        { label: "Bread", effect: { food: 8 } }
+    ]),
+    annualStage(1933, "First Hundred Days", "radio", ["Radio", "Reopened Bank", "CCC Camp"], [
+        yearEvent(3, "Bank Holiday", "The Bank Holiday closes banks for inspection.", ["bank-holiday", "emergency-banking-act"], miniGame(
+            "mg-1933-bank-holiday",
+            "Mini-Game: Restore Confidence",
+            "A reopened bank asks people to trust the system again.",
+            "Choose a response to banking reform.",
+            ["bank-holiday", "emergency-banking-act"],
+            [
+                { label: "I want to use the reopened inspected banks", effect: { hope: 9, money: 4 }, consequence: "Banking reform helps confidence return.", factIds: ["emergency-banking-act", "bank-holiday"] },
+                { label: "I want to hide all our cash at home", effect: { money: 2, hope: -5 }, consequence: "Fear remains high and recovery is slower.", factIds: ["bank-failures"] }
+            ]
+        )),
+        yearEvent(7, "Fireside Chats and FDIC", "Radio messages explain reform and FDIC protects deposits.", ["fireside-chats", "fdic"], miniGame(
+            "mg-1933-fdic",
+            "Mini-Game: Match the Reform",
+            "Which reform directly protects bank deposits?",
+            "Pick the correct New Deal reform.",
+            ["fdic"],
+            [
+                { label: "I choose the FDIC", effect: { hope: 10 }, consequence: "Correct: the FDIC protects bank deposits.", factIds: ["fdic"] },
+                { label: "I choose the AAA", effect: { hope: -3 }, consequence: "The AAA focused on agriculture, not bank deposits.", factIds: ["aaa"] },
+                { label: "I choose the WPA", effect: { hope: -3 }, consequence: "The WPA created jobs later, not deposit insurance.", factIds: ["wpa"] }
+            ]
+        )),
+        yearEvent(11, "CCC, PWA, TVA, AAA", "The New Deal experiments with jobs, public works, power, and farm policy.", ["ccc", "pwa", "tva", "aaa", "first-hundred-days"], miniGame(
+            "mg-1933-programs",
+            "Mini-Game: Pick a Work Program",
+            "Your family needs income and public work is opening.",
+            "Choose a program that directly creates employment.",
+            ["ccc", "pwa", "tva"],
+            [
+                { label: "I want to take a CCC conservation job", effect: { money: 8, hope: 7 }, consequence: "The CCC puts young men to work on conservation projects.", factIds: ["ccc"] },
+                { label: "I want to wait for markets to recover alone", effect: { money: -6, hope: -4 }, consequence: "Markets do not recover quickly enough for many families.", factIds: ["unemployment-rises"] }
+            ]
+        ))
+    ], [
+        { label: "FDIC Confidence", effect: { hope: 8 }, factIds: ["fdic"] },
+        { label: "CCC Job Card", effect: { money: 7, hope: 7 }, factIds: ["ccc"] }
+    ]),
+    annualStage(1934, "Work Relief and Dry Land", "dry-farm", ["Work Crew", "Cracked Soil", "Farm Debt"], [
+        yearEvent(4, "CWA Work Relief", "The Civil Works Administration provides short-term jobs.", ["cwa"], miniGame(
+            "mg-1934-cwa",
+            "Mini-Game: Short-Term Work",
+            "A short-term CWA job opens.",
+            "Choose how to use the temporary paycheck.",
+            ["cwa"],
+            [
+                { label: "I want to buy food and save a little", effect: { food: 8, money: 4 }, consequence: "Short-term work offers relief, not a permanent fix.", factIds: ["cwa"] },
+                { label: "I want to act like the crisis is over", effect: { money: -4, hope: -4 }, consequence: "The Depression is not over yet.", factIds: ["unemployment-rises"] }
+            ]
+        )),
+        yearEvent(9, "Dry Farm Conditions", "Dry land and debt make farming harder.", ["dry-dust-bowl-conditions", "farm-foreclosures"], miniGame(
+            "mg-1934-farm",
+            "Mini-Game: Farm Debt",
+            "A crop fails and the mortgage is due.",
+            "Choose a difficult farm-family tradeoff.",
+            ["dry-dust-bowl-conditions", "farm-foreclosures"],
+            [
+                { label: "I want to seek farm aid and ration food", effect: { money: 5, food: -3, hope: 4 }, consequence: "Aid helps, but the land is still under stress.", factIds: ["aaa", "farm-foreclosures"] },
+                { label: "I want to ignore the debt notice", effect: { money: -8, hope: -4 }, consequence: "Foreclosure risk grows.", factIds: ["farm-foreclosures"] }
+            ]
+        ))
+    ], [
+        { label: "Water Can", effect: { food: 7, hope: 3 }, factIds: ["dry-dust-bowl-conditions"] },
+        { label: "CWA Work Crew", effect: { money: 6, food: 4 }, factIds: ["cwa"] }
+    ]),
+    annualStage(1935, "Second New Deal", "public-works", ["WPA Crew", "Safety Net", "Union Hall"], [
+        yearEvent(3, "WPA Jobs", "The Works Progress Administration creates public jobs.", ["wpa"], miniGame(
+            "mg-1935-wpa",
+            "Mini-Game: Build the Community",
+            "A WPA project is hiring.",
+            "Choose a project that gives wages and public benefit.",
+            ["wpa"],
+            [
+                { label: "I want to build roads, schools, and parks", effect: { money: 12, food: 6, hope: 8 }, consequence: "WPA work brings wages and useful public projects.", factIds: ["wpa"] },
+                { label: "I want to reject all public work", effect: { money: -8, hope: -3 }, consequence: "Some criticized federal jobs, but many families needed them.", factIds: ["new-deal-opposition"] }
+            ]
+        )),
+        yearEvent(7, "Social Security Act", "The Social Security Act creates a federal safety net.", ["social-security-act"], miniGame(
+            "mg-1935-social-security",
+            "Mini-Game: Safety Net",
+            "Older Americans need long-term support.",
+            "Choose the policy that creates a federal safety net.",
+            ["social-security-act"],
+            [
+                { label: "I choose the Social Security Act", effect: { hope: 10 }, consequence: "Correct: Social Security changes expectations of federal responsibility.", factIds: ["social-security-act"] },
+                { label: "I choose cash-and-carry", effect: { hope: -3 }, consequence: "That policy relates to neutrality and war trade later.", factIds: ["cash-and-carry"] }
+            ]
+        )),
+        yearEvent(11, "Wagner Act", "The Wagner Act protects workers' rights to organize.", ["wagner-act"], miniGame(
+            "mg-1935-wagner",
+            "Mini-Game: Worker Voice",
+            "Workers discuss organizing for better conditions.",
+            "Choose how to respond.",
+            ["wagner-act"],
+            [
+                { label: "I want to support worker organizing", effect: { hope: 8, money: 3 }, consequence: "Worker voice grows under the Wagner Act.", factIds: ["wagner-act"] },
+                { label: "I want to avoid all conflict", effect: { money: 3, hope: -5 }, consequence: "Short-term calm may reduce worker power.", factIds: ["wagner-act"] }
+            ]
+        ))
+    ], [
+        { label: "WPA Paycheck", effect: { money: 8, food: 6, hope: 8 }, factIds: ["wpa"] },
+        { label: "Social Security Card", effect: { hope: 9 }, factIds: ["social-security-act"] }
+    ]),
+    annualStage(1936, "Migration West", "dry-farm", ["Packed Truck", "Road West", "Crowded Camp"], [
+        yearEvent(5, "Migration West", "Many farm families leave home searching for work.", ["migration-west", "dry-dust-bowl-conditions"], miniGame(
+            "mg-1936-migration",
+            "Mini-Game: Stay or Move",
+            "The farm can no longer support your family.",
+            "Choose a path with no perfect answer.",
+            ["migration-west"],
+            [
+                { label: "I want to leave for the West", effect: { money: -6, hope: 9 }, consequence: "Migration offers hope but brings travel costs and crowded camps.", factIds: ["migration-west"] },
+                { label: "I want to stay and try again", effect: { food: -8, hope: 4 }, consequence: "Home remains meaningful, but crop failure risk continues.", factIds: ["dry-dust-bowl-conditions"] }
+            ]
+        )),
+        yearEvent(10, "Farm Foreclosures", "Debt and foreclosure push families off farms.", ["farm-foreclosures"], miniGame(
+            "mg-1936-foreclosure",
+            "Mini-Game: Auction Day",
+            "A farm auction begins nearby.",
+            "Choose how neighbors respond.",
+            ["farm-foreclosures"],
+            [
+                { label: "I want neighbors to pool resources and help", effect: { money: -3, hope: 8 }, consequence: "Community support can soften hardship.", factIds: ["farm-foreclosures"] },
+                { label: "I want every family to face it alone", effect: { hope: -8 }, consequence: "Isolation makes the crisis feel worse.", factIds: ["farm-foreclosures"] }
+            ]
+        ))
+    ], [
+        { label: "Map West", effect: { hope: 7 }, factIds: ["migration-west"] },
+        { label: "Bread", effect: { food: 8 } }
+    ]),
+    annualStage(1937, "Opposition and Court Fight", "capitol", ["Court", "Critics", "Slow Recovery"], [
+        yearEvent(5, "Court-Packing Controversy", "FDR's court-packing plan raises constitutional concerns.", ["court-packing"], miniGame(
+            "mg-1937-court",
+            "Mini-Game: Constitutional Check",
+            "A proposal would add Supreme Court justices.",
+            "Choose the concern many critics raised.",
+            ["court-packing"],
+            [
+                { label: "I think the concern is balance of powers", effect: { hope: 5 }, consequence: "Critics argued the plan threatened constitutional balance.", factIds: ["court-packing"] },
+                { label: "I think the concern is Pearl Harbor", effect: { hope: -3 }, consequence: "Pearl Harbor happens later, in 1941.", factIds: ["pearl-harbor"] }
+            ]
+        )),
+        yearEvent(10, "New Deal Opposition", "Critics debate federal power, costs, and slow recovery.", ["new-deal-opposition"], miniGame(
+            "mg-1937-opposition",
+            "Mini-Game: Weigh the Criticism",
+            "Neighbors argue about the New Deal.",
+            "Pick the most nuanced interpretation.",
+            ["new-deal-opposition"],
+            [
+                { label: "I think it helped but did not fully end the Depression", effect: { hope: 7 }, consequence: "That is the key APUSH nuance.", factIds: ["new-deal-opposition", "unemployment-rises"] },
+                { label: "I think it instantly solved everything", effect: { hope: -7 }, consequence: "Recovery was incomplete before wartime mobilization.", factIds: ["unemployment-rises"] }
+            ]
+        ))
+    ], [
+        { label: "Worker Voice", effect: { hope: 6, money: 3 }, factIds: ["wagner-act"] },
+        { label: "Relief Check", effect: { money: 6, food: 4 }, factIds: ["social-security-act"] }
+    ]),
+    annualStage(1938, "Recovery Still Uneven", "hooverville", ["Part-Time Work", "Relief Office", "Farm Road"], [
+        yearEvent(6, "Slow Recovery", "New Deal relief matters, but unemployment remains a major problem.", ["unemployment-rises", "new-deal-opposition"], miniGame(
+            "mg-1938-recovery",
+            "Mini-Game: Recovery Check",
+            "A headline says the Depression is over.",
+            "Pick the accurate response.",
+            ["unemployment-rises", "new-deal-opposition"],
+            [
+                { label: "I think recovery is still uneven and incomplete", effect: { hope: 5 }, consequence: "Correct: mass unemployment remains before WWII mobilization.", factIds: ["unemployment-rises"] },
+                { label: "I think every family is secure now", effect: { hope: -6, food: -3 }, consequence: "That oversimplifies the late 1930s.", factIds: ["new-deal-opposition"] }
+            ]
+        ))
+    ], [
+        { label: "Work Flyer", effect: { money: 5, hope: 4 }, factIds: ["migration-west"] },
+        { label: "Soup Bowl", effect: { food: 8 }, factIds: ["breadlines"] }
+    ]),
+    annualStage(1939, "War Begins Abroad", "news", ["Radio Tower", "Newsstand", "Neutrality Debate"], [
+        yearEvent(3, "Germany Invades Poland", "Germany invades Poland and war begins in Europe.", ["germany-invades-poland", "britain-france-declare-war"], miniGame(
+            "mg-1939-poland",
+            "Mini-Game: News Bulletin",
+            "News from Europe reaches the radio.",
+            "Choose the accurate sequence.",
+            ["germany-invades-poland", "britain-france-declare-war"],
+            [
+                { label: "I think Germany invades Poland first", effect: { hope: 4 }, consequence: "Correct sequence for 1939.", factIds: ["germany-invades-poland", "britain-france-declare-war"] },
+                { label: "I think Pearl Harbor happens first", effect: { hope: -5 }, consequence: "Pearl Harbor comes later, in 1941.", factIds: ["pearl-harbor"] }
+            ]
+        )),
+        yearEvent(9, "Neutrality and Cash-and-Carry", "The U.S. debates neutrality while cash-and-carry expands aid.", ["neutrality-acts", "isolationism-debate", "cash-and-carry"], miniGame(
+            "mg-1939-neutrality",
+            "Mini-Game: Aid or Isolation",
+            "Americans debate how involved the U.S. should be.",
+            "Choose a historically plausible position.",
+            ["neutrality-acts", "isolationism-debate"],
+            [
+                { label: "I want strict neutrality", effect: { hope: 4, readiness: -6 }, consequence: "Many Americans feared another war.", factIds: ["neutrality-acts", "isolationism-debate"] },
+                { label: "I want cash-and-carry aid", effect: { money: 5, readiness: 5 }, consequence: "Aid grows while the U.S. stays formally out.", factIds: ["cash-and-carry"] }
+            ]
+        ))
+    ], [
+        { label: "Newspaper", effect: { hope: 3 }, factIds: ["germany-invades-poland"] },
+        { label: "Radio Bulletin", effect: { hope: 3 }, factIds: ["britain-france-declare-war"] }
+    ]),
+    annualStage(1940, "Preparing Without Entering", "defense", ["Defense Plant", "Training Notice", "Radio"], [
+        yearEvent(4, "Selective Training Act", "The first peacetime draft prepares for possible war.", ["selective-training-service-act"], miniGame(
+            "mg-1940-draft",
+            "Mini-Game: Readiness Tradeoff",
+            "A training notice arrives.",
+            "Choose how the family handles preparedness.",
+            ["selective-training-service-act"],
+            [
+                { label: "I want to accept training as preparation", effect: { readiness: 8, hope: -2 }, consequence: "Preparedness rises, but anxiety does too.", factIds: ["selective-training-service-act"] },
+                { label: "I want to pretend war cannot affect us", effect: { readiness: -6, hope: 3 }, consequence: "Caution is understandable, but readiness falls.", factIds: ["isolationism-debate"] }
+            ]
+        )),
+        yearEvent(9, "Arsenal of Democracy", "Defense industry expands before formal U.S. entry.", ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"], miniGame(
+            "mg-1940-arsenal",
+            "Mini-Game: Defense Job",
+            "A defense plant is hiring.",
+            "Choose whether to take defense work.",
+            ["arsenal-of-democracy"],
+            [
+                { label: "I want to take the defense job", effect: { money: 10, food: 5, readiness: 7 }, consequence: "Defense production starts pulling people into paid work.", factIds: ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"] },
+                { label: "I want to avoid war industries", effect: { hope: 4, money: -6, readiness: -5 }, consequence: "Avoiding war work means missing new jobs.", factIds: ["isolationism-debate"] }
+            ]
+        ))
+    ], [
+        { label: "Defense Job", effect: { money: 8, food: 4, readiness: 6 }, factIds: ["arsenal-of-democracy"] },
+        { label: "Training Notice", effect: { readiness: 8 }, factIds: ["selective-training-service-act"] }
+    ]),
+    annualStage(1941, "Lend-Lease and Pearl Harbor", "alert", ["Lend-Lease Crate", "Radio Alert", "Congress"], [
+        yearEvent(3, "Lend-Lease", "Lend-Lease sends aid to nations fighting the Axis.", ["lend-lease"], miniGame(
+            "mg-1941-lend-lease",
+            "Mini-Game: Supply Route",
+            "Allies need supplies before the U.S. formally enters the war.",
+            "Choose the policy that sends aid overseas.",
+            ["lend-lease"],
+            [
+                { label: "I choose Lend-Lease", effect: { readiness: 10, hope: 3 }, consequence: "Correct: Lend-Lease expands aid to nations fighting the Axis.", factIds: ["lend-lease"] },
+                { label: "I choose Bank Holiday", effect: { hope: -3 }, consequence: "That was a 1933 banking response.", factIds: ["bank-holiday"] }
+            ]
+        )),
+        yearEvent(8, "Pearl Harbor", "Japan attacks Pearl Harbor on December 7, 1941.", ["pearl-harbor"], miniGame(
+            "mg-1941-pearl-harbor",
+            "Mini-Game: Radio Alert",
+            "A radio alert interrupts the day: Pearl Harbor has been attacked.",
+            "Choose the accurate consequence.",
+            ["pearl-harbor"],
+            [
+                { label: "I think the U.S. moves toward formal war", effect: { readiness: 12, hope: -4 }, consequence: "Pearl Harbor leads to U.S. entry into World War II.", factIds: ["pearl-harbor", "us-declares-war"] },
+                { label: "I think the story should end here", effect: { hope: -6 }, consequence: "The story continues into mobilization and wartime employment.", factIds: ["us-declares-war"] }
+            ]
+        )),
+        yearEvent(11, "U.S. Declares War", "Congress declares war and mobilization accelerates.", ["us-declares-war"], miniGame(
+            "mg-1941-war",
+            "Mini-Game: Mobilization Begins",
+            "War begins for the United States.",
+            "Choose what changes on the home front.",
+            ["us-declares-war"],
+            [
+                { label: "I think factories and military service expand", effect: { money: 6, readiness: 9, hope: -2 }, consequence: "Mobilization begins to transform work and production.", factIds: ["us-declares-war", "wartime-shipyard-factory-jobs"] },
+                { label: "I think nothing changes economically", effect: { money: -4, readiness: -4 }, consequence: "Wartime demand soon reshapes the economy.", factIds: ["unemployment-falls-mobilization"] }
+            ]
+        ))
+    ], [
+        { label: "Lend-Lease Crate", effect: { readiness: 10, hope: 3 }, factIds: ["lend-lease"] },
+        { label: "Radio Update", effect: { hope: 3 }, factIds: ["pearl-harbor"] }
+    ]),
+    annualStage(1942, "War Production and Civil Liberties", "wartime", ["WPB", "OPA", "Factory Gate"], [
+        yearEvent(3, "War Production Board", "Factories convert to wartime production.", ["war-production-board", "wartime-shipyard-factory-jobs"], miniGame(
+            "mg-1942-wpb",
+            "Mini-Game: Convert the Factory",
+            "A factory must shift from consumer goods to military production.",
+            "Choose the wartime agency idea.",
+            ["war-production-board"],
+            [
+                { label: "I want the factory to build war supplies", effect: { money: 8, readiness: 10 }, consequence: "The WPB directs industrial conversion.", factIds: ["war-production-board"] },
+                { label: "I want the factory to ignore defense contracts", effect: { money: -6, readiness: -7 }, consequence: "That misses wartime industrial mobilization.", factIds: ["war-production-board"] }
+            ]
+        )),
+        yearEvent(7, "OPA and Rationing", "Price controls and rationing manage scarce goods.", ["office-price-administration", "rationing"], miniGame(
+            "mg-1942-opa",
+            "Mini-Game: Ration Book",
+            "Sugar, gasoline, and other goods are limited.",
+            "Choose how to respond to rationing.",
+            ["office-price-administration", "rationing"],
+            [
+                { label: "I want to follow ration rules", effect: { food: 7, readiness: 8 }, consequence: "Rationing stretches supplies for the war effort.", factIds: ["rationing", "office-price-administration"] },
+                { label: "I want to ignore rationing", effect: { food: 5, readiness: -8, hope: -5 }, consequence: "Short-term gain weakens shared sacrifice.", factIds: ["rationing"] }
+            ]
+        )),
+        yearEvent(11, "Japanese American Incarceration", "Japanese American incarceration is a grave civil liberties violation.", ["japanese-american-incarceration"], miniGame(
+            "mg-1942-incarceration",
+            "Mini-Game: Civil Liberties",
+            "The government orders Japanese American incarceration.",
+            "Choose the historically responsible interpretation.",
+            ["japanese-american-incarceration"],
+            [
+                { label: "I think this is a civil liberties violation", effect: { hope: 4 }, consequence: "Correct: wartime fear produced a serious injustice.", factIds: ["japanese-american-incarceration"] },
+                { label: "I think this was harmless", effect: { hope: -10 }, consequence: "That erases the harm and injustice of incarceration.", factIds: ["japanese-american-incarceration"] }
+            ]
+        ))
+    ], [
+        { label: "WPB Contract", effect: { money: 8, readiness: 8 }, factIds: ["war-production-board"] },
+        { label: "Ration Book", effect: { food: 8, readiness: 6 }, factIds: ["rationing"] }
+    ]),
+    annualStage(1943, "Workers and War Bonds", "wartime", ["Shipyard", "War Bonds", "Rosie Poster"], [
+        yearEvent(3, "Rosie and Women in Industry", "Women enter industrial jobs in large numbers.", ["rosie-women-industry"], miniGame(
+            "mg-1943-rosie",
+            "Mini-Game: Labor Shift",
+            "A factory needs more workers.",
+            "Choose the accurate home-front change.",
+            ["rosie-women-industry"],
+            [
+                { label: "I think women take industrial jobs in large numbers", effect: { money: 8, hope: 7 }, consequence: "Rosie the Riveter symbolizes this shift.", factIds: ["rosie-women-industry"] },
+                { label: "I think factories close because no one works", effect: { money: -8, readiness: -6 }, consequence: "Wartime factories expanded rapidly.", factIds: ["wartime-shipyard-factory-jobs"] }
+            ]
+        )),
+        yearEvent(7, "African American Industrial Migration", "African Americans move to industrial jobs while facing discrimination.", ["african-american-industrial-migration"], miniGame(
+            "mg-1943-migration",
+            "Mini-Game: Industrial Migration",
+            "A war-industry job opens in another city.",
+            "Choose a respectful, accurate interpretation.",
+            ["african-american-industrial-migration"],
+            [
+                { label: "I think jobs expand, but discrimination remains", effect: { money: 7, hope: 3 }, consequence: "Opportunity and inequality both shape the experience.", factIds: ["african-american-industrial-migration"] },
+                { label: "I think everyone benefits equally", effect: { hope: -7 }, consequence: "That oversimplifies wartime inequality.", factIds: ["african-american-industrial-migration"] }
+            ]
+        )),
+        yearEvent(11, "War Bonds", "Families buy war bonds to help finance the war.", ["war-bonds"], miniGame(
+            "mg-1943-bonds",
+            "Mini-Game: Bond Drive",
+            "The government asks families to buy war bonds.",
+            "Choose a financial tradeoff.",
+            ["war-bonds"],
+            [
+                { label: "I want to buy a war bond", effect: { money: -6, readiness: 10, hope: 5 }, consequence: "War bonds help finance federal wartime spending.", factIds: ["war-bonds"] },
+                { label: "I want to save every dollar", effect: { money: 6, readiness: -5 }, consequence: "Cash is safer now, but war financing support falls.", factIds: ["war-bonds"] }
+            ]
+        ))
+    ], [
+        { label: "Rosie Poster", effect: { hope: 8 }, factIds: ["rosie-women-industry"] },
+        { label: "War Bond", effect: { readiness: 9, hope: 4 }, factIds: ["war-bonds"] }
+    ]),
+    annualStage(1944, "Mobilization Peaks", "wartime", ["Shipyard Jobs", "Assembly Line", "Housing"], [
+        yearEvent(5, "Shipyard and Factory Jobs", "War industries and military service pull unemployment down.", ["wartime-shipyard-factory-jobs", "unemployment-falls-mobilization"], miniGame(
+            "mg-1944-jobs",
+            "Mini-Game: Why Jobs Rise",
+            "Unemployment falls during the war.",
+            "Choose the main reason.",
+            ["unemployment-falls-mobilization"],
+            [
+                { label: "I think military service and war production expand", effect: { money: 10, food: 5, hope: 6 }, consequence: "Wartime demand helps end Depression-era unemployment.", factIds: ["unemployment-falls-mobilization", "wartime-shipyard-factory-jobs"] },
+                { label: "I think the New Deal alone instantly ended it", effect: { hope: -7 }, consequence: "New Deal relief mattered, but mobilization was decisive.", factIds: ["new-deal-opposition", "unemployment-falls-mobilization"] }
+            ]
+        )),
+        yearEvent(10, "Housing and Family Strain", "War work brings jobs but also long hours, housing shortages, and family separation.", ["wartime-shipyard-factory-jobs"], miniGame(
+            "mg-1944-strain",
+            "Mini-Game: Home Front Strain",
+            "A shipyard job pays well but the city is crowded.",
+            "Choose the tradeoff.",
+            ["wartime-shipyard-factory-jobs"],
+            [
+                { label: "I want to move for war work", effect: { money: 9, food: 5, hope: -3 }, consequence: "The job helps, but housing stress is real.", factIds: ["wartime-shipyard-factory-jobs"] },
+                { label: "I want to stay home", effect: { hope: 4, money: -5 }, consequence: "Stability remains, but wartime job growth is elsewhere.", factIds: ["unemployment-falls-mobilization"] }
+            ]
+        ))
+    ], [
+        { label: "Shipyard Job", effect: { money: 9, readiness: 5 }, factIds: ["wartime-shipyard-factory-jobs"] },
+        { label: "Factory Paycheck", effect: { money: 9, food: 5 }, factIds: ["wartime-shipyard-factory-jobs"] }
+    ]),
+    annualStage(1945, "War Ends", "sunrise", ["War Ends", "Factory Lights", "Homecoming"], [
+        yearEvent(5, "War Ends", "World War II ends in 1945.", ["wwii-ends-1945"], miniGame(
+            "mg-1945-war-ends",
+            "Mini-Game: Historical Reflection",
+            "The war ends and the economy has changed.",
+            "Choose the best APUSH takeaway.",
+            ["wwii-ends-1945"],
+            [
+                { label: "I think wartime mobilization transformed the economy", effect: { hope: 10 }, consequence: "Correct: production, federal spending, and military service changed the economy.", factIds: ["wwii-ends-1945", "unemployment-falls-mobilization"] },
+                { label: "I think the Depression ended instantly in 1933", effect: { hope: -8 }, consequence: "The New Deal helped, but mass unemployment persisted until wartime mobilization.", factIds: ["first-hundred-days", "unemployment-falls-mobilization"] }
+            ]
+        )),
+        yearEvent(10, "Reflection", "The U.S. emerges economically powerful, but sacrifices and inequalities remain.", ["wwii-ends-1945", "unemployment-falls-mobilization"], miniGame(
+            "mg-1945-reflect",
+            "Mini-Game: Final Balance",
+            "How should the period be remembered?",
+            "Choose the most complete interpretation.",
+            ["wwii-ends-1945"],
+            [
+                { label: "I think relief, reform, mobilization, and sacrifice all mattered", effect: { hope: 8 }, consequence: "That balanced interpretation fits the full journey.", factIds: ["wwii-ends-1945"] },
+                { label: "I think only one simple cause mattered", effect: { hope: -6 }, consequence: "The era had many connected causes and consequences.", factIds: ["wwii-ends-1945"] }
+            ]
+        ))
+    ], [
+        { label: "War Ends Headline", effect: { hope: 10 }, factIds: ["wwii-ends-1945"] },
+        { label: "Homecoming", effect: { hope: 8 }, factIds: ["wwii-ends-1945"] }
+    ])
+];
+
+APUSH_CONTENT.stages = YEARLY_STAGES;
+APUSH_CONTENT.choices = YEARLY_STAGES.flatMap((stage)=> stage.events.map((event)=> event.miniGame).filter(Boolean));
+
+const CHOICES_BY_ID = Object.fromEntries(APUSH_CONTENT.choices.map((choice)=> [choice.id, choice]));
+const TOTAL_DURATION = APUSH_CONTENT.stages.reduce((sum, stage)=> sum + stage.duration, 0);
+
+class Player{
+    constructor(speedVector, postionVector){
+        this.speedVector = speedVector;
+        this.postionVector = postionVector;
+        this.lastarrowup = true;
+        this.allowedjumps = 1;
+        this.jumps = this.allowedjumps;
+        this.state = "idle";
+        this.firstupdate = true;
+        this.invulnerableBlink = false;
+        this.isSliding = false;
+        this.frames = new FrameTracker(scale);
+        this.frames.add(this.size, "idle", 6, "./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Idle.png", 0.055);
+        this.frames.add(this.size, "running", 8, "./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Run.png", 0.052);
+        this.frames.add(this.size, "sliding", 8, "./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Run.png", 0.035);
+        this.frames.add(this.size, "jumping", 11, "./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Jump.png", 0.08);
+    }
+
+    get type(){
+        return "player";
+    }
+
+    getCollisionBox(){
+        const collisionHeight = this.isSliding ? this.size.y * 0.44 : this.size.y;
+        return {
+            x: this.postionVector.x + 0.35,
+            y: this.postionVector.y + this.size.y - collisionHeight,
+            width: this.size.x - 0.7,
+            height: collisionHeight
+        };
+    }
+
+    update(game, timeframe, arrowkey){
+        const onGround = this.postionVector.y + this.size.y >= game.height - GroundLevel - 0.05;
+        this.isSliding = arrowkey.arrowdown && onGround && !arrowkey.arrowup;
+        if (this.postionVector.y + this.size.y < game.height - GroundLevel){
+            this.isSliding = false;
+            if(this.jumps > 0 && arrowkey.arrowup && !this.lastarrowup){
+                this.speedVector.y = jump + 5;
+                this.jumps--;
+            }
+            this.state = "jumping";
+            this.speedVector.y = this.speedVector.y + timeframe * gravitiy;
+        }
+        else if(arrowkey.arrowup && this.speedVector.y >= 0){
+            this.speedVector.y = jump;
+            this.jumps = this.allowedjumps;
+        }
+        else{
+            if(!this.firstupdate) this.state = this.isSliding ? "sliding" : "running";
+            this.firstupdate = false;
+            this.speedVector.y = 0;
+        }
+        let moveYdistance = this.speedVector.y * timeframe;
+        if(!(this.postionVector.y + this.size.y + moveYdistance > game.height - GroundLevel)){
+            this.postionVector.y = this.postionVector.y + moveYdistance;
+        }
+        else{
+            this.postionVector.y = game.height - GroundLevel - this.size.y;
+        }
+        this.lastarrowup = arrowkey.arrowup;
+    }
+}
+Player.prototype.size = new Vector(3.1, 5.2);
+
+class HistoricalActor{
+    constructor(kind, data, postionVector, size, speed){
+        this.kind = kind;
+        this.data = data;
+        this.postionVector = postionVector;
+        this.size = size;
+        this.speedVector = new Vector(speed, 0);
+        this.remove = false;
+        this.type = kind;
+    }
+
+    update(game, timeframe){
+        this.postionVector.x = rounddecimat(this.postionVector.x + this.speedVector.x * timeframe);
+        if(this.postionVector.x + this.size.x < -10){
+            this.remove = true;
+            return;
+        }
+        if(overlap(game.player, this)){
+            if(this.kind == "event"){
+                game.triggerEvent(this.data);
+                this.remove = true;
+            }
+            else if(this.kind == "collectible"){
+                game.collect(this);
+                this.remove = true;
+            }
+            else if(game.invulnerability <= 0){
+                game.hitObstacle(this);
+                this.remove = true;
+            }
+        }
+    }
+}
 
 class Game {
-    constructor(width,height,scale,state,player,display,highestscore){
-        this.width = width
-        this.height = height
-        this.scale = scale
-        this.player = player
-        this.obstacles = []
-        this.score = 0
-        this.highestscore = highestscore
-        this.state = state
-        this.incrmentdiff = 30;
-        this.obstaclespeed = -2;
-        this.spawnrate = -(1.2 * this.width)/Obstacle.prototype.speed.x;
-        this.display = new display(this)
+    constructor(width, height, scale, player, display){
+        this.width = width;
+        this.height = height;
+        this.scale = scale;
+        this.player = player;
+        this.actors = [];
+        this.state = "start";
+        this.stageIndex = 0;
+        this.stageTime = 0;
+        this.elapsed = 0;
+        this.resources = DEBUG_HARDSHIP_START
+            ? { money: 1, food: 4, hope: 6, readiness: 0 }
+            : { ...APUSH_CONTENT.startingResources };
+        this.encounteredFacts = new Set();
+        this.narrativesShown = new Set();
+        this.newsShown = new Set();
+        this.eventsSpawned = new Set();
+        this.choicesShown = new Set();
+        this.spawnTimer = 1.5;
+        this.invulnerability = 0;
+        this.narrativeQueue = [];
+        this.activeNarrative = null;
+        this.narrativeTimer = 0;
+        this.newsMessage = null;
+        this.newsTimer = 0;
+        this.lastResourceNote = "";
+        this.noteTimer = 0;
+        this.currentChoice = null;
+        this.choiceResult = null;
+        this.pendingHardship = false;
+        this.display = new display(this);
+        this.enterStage(0);
     }
 
-    updateactors(frametime,keys){
-        for(let obstacle of this.obstacles){
-            obstacle.update(this,frametime)
-            if(this.state  == "lost"){
+    get stage(){
+        return APUSH_CONTENT.stages[this.stageIndex];
+    }
 
+    get totalProgress(){
+        return clamp((this.elapsed / TOTAL_DURATION) * 100, 0, 100);
+    }
 
-                this.display.sync(this)
+    get yearLabel(){
+        const stage = this.stage;
+        if(!stage) return "1945";
+        if(stage.startYear == stage.endYear) return stage.years;
+        const progress = clamp(this.stageTime / stage.duration, 0, 0.999);
+        return `${Math.floor(stage.startYear + ((stage.endYear - stage.startYear + 1) * progress))}`;
+    }
 
-                return this.score
+    startJourney(){
+        if(this.state == "start"){
+            this.state = "playing";
+            this.queueNarrative("Hit event boxes to open choices. Jump over low boxes or slide under high boxes to dodge.", []);
+        }
+    }
+
+    enterStage(index){
+        this.stageIndex = index;
+        const stage = this.stage;
+        if(!stage){
+            this.completeJourney();
+            return;
+        }
+        this.markFacts(stage.factIds);
+        this.spawnTimer = 1.2;
+        this.actors = this.actors.filter((actor)=> actor.kind == "collectible");
+        this.narrativeQueue = [];
+        this.activeNarrative = null;
+        this.narrativeTimer = 0;
+        this.queueNarrative(stage.label, stage.factIds);
+    }
+
+    markFacts(factIds = []){
+        for(let factId of factIds){
+            if(FACTS_BY_ID[factId]){
+                this.encounteredFacts.add(factId);
             }
         }
-        this.player.update(this,frametime,keys)
     }
 
-    spawnobstacles(count){
-        for(let i = 0 ; i < count ; i++){
-            let distancebeteenobstacles = randomrange(this.width * 0.2,this.width * 2)
-            let random = [Skelton,Sperm,Plent][Math.floor(Math.random() * 3)]
-            console.log(random,"errrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-            this.obstacles.push(random.create(new Vector((this.width * 1.6)  +  distancebeteenobstacles * i,this.height)))
+    update(frametime, keys){
+        if(this.state == "start" || this.state == "hardship" || this.state == "complete"){
+            this.updateMessageTimers(frametime);
+            this.display.sync(this);
+            return;
         }
-    }
-    update(frametime,keys){
-        this.score += (frametime * 10)
-        this.updateactors(frametime,keys)
-        if((this.obstacles.length == 0 || this.obstacles.last().postionVector.x < this.width)){
-            this.spawnobstacles(2)
+        if(this.state == "choice"){
+            this.updateMessageTimers(frametime);
+            this.display.sync(this);
+            return;
         }
-        if(this.score < 400 && Math.trunc(this.score) % 10 ==0){
-            Obstacle.prototype.speed.x-=0.06
+        if(keys.start){
+            this.startJourney();
         }
-        this.display.sync(this)
+
+        this.invulnerability = Math.max(0, this.invulnerability - frametime);
+        this.updateMessageTimers(frametime);
+        this.player.update(this, frametime, keys);
+        this.updateActors(frametime);
+        this.spawnActors(frametime);
+
+        const timelineFrame = frametime * TIMELINE_MULTIPLIER;
+        this.elapsed += timelineFrame;
+        this.stageTime += timelineFrame;
+        this.checkTimelineEvents();
+        this.advanceStageIfNeeded();
+        this.display.sync(this);
     }
 
-    static newgame(highest){
+    updateMessageTimers(frametime){
+        if(this.noteTimer > 0){
+            this.noteTimer = Math.max(0, this.noteTimer - frametime);
+        }
+        if(this.newsTimer > 0){
+            this.newsTimer = Math.max(0, this.newsTimer - frametime);
+        }
+        else{
+            this.newsMessage = null;
+        }
+        if(this.narrativeTimer > 0){
+            this.narrativeTimer = Math.max(0, this.narrativeTimer - frametime);
+        }
+        else if(this.narrativeQueue.length){
+            this.activeNarrative = this.narrativeQueue.shift();
+            this.narrativeTimer = 6.5;
+        }
+        else{
+            this.activeNarrative = null;
+        }
+    }
 
-        return new Game(width,height,scale,"idle",new Player(new Vector(0,0),new Vector(2,height - Player.prototype.size.y  - GroundLevel),"onground"),Display,highest)
+    updateActors(frametime){
+        for(let actor of this.actors){
+            actor.update(this, frametime);
+        }
+        this.actors = this.actors.filter((actor)=> !actor.remove);
+    }
+
+    spawnActors(frametime){
+        this.spawnTimer -= frametime;
+        if(this.spawnTimer > 0 || !this.stage) return;
+        const stage = this.stage;
+        const source = stage.collectibles;
+        if(!source.length) return;
+        const data = source[Math.floor(Math.random() * source.length)];
+        const actorKind = "collectible";
+        const iconOnly = actorKind == "collectible" && ICON_ONLY_COLLECTIBLES[data.label];
+        const actorSize = actorKind == "collectible"
+            ? (iconOnly ? new Vector(4.2, 4.2) : new Vector(8.4, 3.8))
+            : new Vector(8.8, 4.6);
+        const y = actorKind == "collectible"
+            ? randomrange(Math.floor(this.height - GroundLevel - 12), Math.floor(this.height - GroundLevel - 8))
+            : this.height - GroundLevel - actorSize.y;
+        const speed = -7.8;
+        this.actors.push(new HistoricalActor(actorKind, data, new Vector(this.width + 4, y), actorSize, speed));
+        this.spawnTimer = randomrange(42, 68) / 10;
+    }
+
+    spawnEventBox(event){
+        const lane = eventLane(event);
+        const size = lane == "slide" ? new Vector(12.4, 4.7) : new Vector(11.2, 5.2);
+        const y = lane == "slide"
+            ? this.height - GroundLevel - size.y - 2.35
+            : this.height - GroundLevel - size.y;
+        const eventX = DEBUG_FAST_TIMELINE ? this.width * 0.18 : this.width * 0.4;
+        const eventSpeed = DEBUG_FAST_TIMELINE ? -180 : -10;
+        const laneEvent = {
+            ...event,
+            lane,
+            actionHint: lane == "slide" ? "SLIDE" : "JUMP"
+        };
+        this.actors.push(new HistoricalActor("event", laneEvent, new Vector(eventX, y), size, eventSpeed));
+    }
+
+    checkTimelineEvents(){
+        const stage = this.stage;
+        if(!stage || this.state != "playing") return;
+        for(let narrative of stage.narratives || []){
+            const id = `${stage.key}:narrative:${narrative.time}`;
+            if(!this.narrativesShown.has(id) && this.stageTime >= narrative.time){
+                this.narrativesShown.add(id);
+                this.queueNarrative(narrative.text, narrative.factIds);
+            }
+        }
+        for(let news of stage.news || []){
+            const id = `${stage.key}:news:${news.time}`;
+            if(!this.newsShown.has(id) && this.stageTime >= news.time){
+                this.newsShown.add(id);
+                this.showNews(news.text, news.factIds);
+            }
+        }
+        for(let event of stage.events || []){
+            const id = `${stage.key}:event:${event.label}:${event.time}`;
+            if(!this.eventsSpawned.has(id) && this.stageTime >= event.time){
+                this.eventsSpawned.add(id);
+                this.spawnEventBox(event);
+            }
+        }
+        for(let choiceId of stage.choices || []){
+            const choice = CHOICES_BY_ID[choiceId];
+            if(choice && !this.choicesShown.has(choice.id) && this.stageTime >= choice.time){
+                this.triggerChoice(choice);
+                break;
+            }
+        }
+    }
+
+    advanceStageIfNeeded(){
+        if(this.state != "playing") return;
+        while(this.stage && this.stageTime >= this.stage.duration){
+            this.stageTime -= this.stage.duration;
+            if(this.stageIndex >= APUSH_CONTENT.stages.length - 1){
+                this.completeJourney();
+                return;
+            }
+            this.enterStage(this.stageIndex + 1);
+        }
+    }
+
+    queueNarrative(text, factIds = []){
+        this.markFacts(factIds);
+        this.narrativeQueue.push({ text });
+    }
+
+    showNews(text, factIds = []){
+        this.markFacts(factIds);
+        this.newsMessage = text;
+        this.newsTimer = 8;
+    }
+
+    triggerEvent(event){
+        this.markFacts(event.factIds);
+        this.queueNarrative(event.description, event.factIds);
+        if(event.miniGame){
+            this.triggerChoice(event.miniGame);
+        }
+    }
+
+    collect(actor){
+        this.markFacts(actor.data.factIds);
+        this.applyResourceEffect(actor.data.effect, actor.data.label);
+        this.lastResourceNote = `${actor.data.label}: ${formatEffect(actor.data.effect)}`;
+        this.noteTimer = 2.2;
+    }
+
+    hitObstacle(actor){
+        this.markFacts(actor.data.factIds);
+        this.applyResourceEffect(actor.data.effect, actor.data.label);
+        this.invulnerability = 1.35;
+        this.lastResourceNote = `${actor.data.label}: ${formatEffect(actor.data.effect)}`;
+        this.noteTimer = 2.6;
+        this.checkHardship();
+    }
+
+    applyResourceEffect(effect = {}){
+        for(let key of RESOURCE_ORDER){
+            if(effect[key]){
+                this.resources[key] = clamp(this.resources[key] + effect[key]);
+            }
+        }
+    }
+
+    triggerChoice(choice){
+        this.state = "choice";
+        this.currentChoice = choice;
+        this.choiceResult = null;
+        this.pendingHardship = false;
+        this.choicesShown.add(choice.id);
+        this.markFacts(choice.factIds);
+    }
+
+    chooseOption(optionIndex){
+        if(!this.currentChoice || this.choiceResult) return;
+        const option = this.currentChoice.options[optionIndex];
+        this.applyResourceEffect(option.effect);
+        this.markFacts(option.factIds);
+        this.choiceResult = {
+            label: option.label,
+            consequence: option.consequence,
+            effect: formatEffect(option.effect)
+        };
+        this.pendingHardship = this.hasHardship();
+    }
+
+    resumeFromChoice(){
+        this.currentChoice = null;
+        this.choiceResult = null;
+        if(this.pendingHardship || this.hasHardship()){
+            this.showHardship();
+        }
+        else{
+            this.state = "playing";
+        }
+    }
+
+    hasHardship(){
+        return this.resources.money <= 0 || this.resources.food <= 0 || this.resources.hope <= 0;
+    }
+
+    checkHardship(){
+        if(this.hasHardship()){
+            this.showHardship();
+        }
+    }
+
+    showHardship(){
+        this.state = "hardship";
+        this.actors = [];
+    }
+
+    completeJourney(){
+        this.state = "complete";
+        this.elapsed = TOTAL_DURATION;
+        this.stageTime = this.stage ? this.stage.duration : 0;
+        this.actors = [];
+    }
+
+    getEncounteredFacts(){
+        return FACTS.filter((fact)=> this.encounteredFacts.has(fact.id));
+    }
+
+    static newgame(){
+        return new Game(
+            width,
+            height,
+            scale,
+            new Player(new Vector(0, 0), new Vector(7.5, height - Player.prototype.size.y - GroundLevel)),
+            Display
+        );
     }
 }
-
 
 class GameRunner{
     constructor(keys){
-        this.keys = keys
-        this.lasttime = null
-        this.highestscore = 0;
-        this.game = Game.newgame(this.highestscore)
-        this.game.update(1/60,keys)
-        this.olddisplay = this.game.display
-        this.idleanimation(this.game)
-        respnosive(this,true)
+        this.keys = keys;
+        this.lasttime = null;
+        this.game = Game.newgame();
+        this.olddisplay = this.game.display;
+        this.bindControls();
+        this.run();
+        respnosive(this, true);
+    }
 
+    bindControls(){
+        this.game.display.onStart = ()=>{
+            this.game.startJourney();
+        };
+        this.game.display.onRestart = ()=>{
+            this.restart();
+        };
+        this.game.display.onChoice = (index)=>{
+            this.game.chooseOption(index);
+        };
+        this.game.display.onContinueChoice = ()=>{
+            this.game.resumeFromChoice();
+        };
+        window.addEventListener("keydown", (e)=>{
+            if((e.key === "Enter" || e.key === " ") && this.game.state == "start"){
+                this.game.startJourney();
+            }
+            if(e.key === "?" || (e.key === "/" && e.shiftKey)){
+                this.game.display.toggleHelp();
+                e.preventDefault();
+            }
+        });
     }
-    idleanimation(game){
-        this.game.display.sync(this.game)
-        if(this.game.state != "idle"){
-            
-        }
-        else{
-            requestAnimationFrame(()=>{this.idleanimation(this.game)})
-        }
+
+    restart(){
+        this.olddisplay.clear();
+        this.game = Game.newgame();
+        this.olddisplay = this.game.display;
+        this.bindControls();
+        respnosive(this, true);
     }
-    start(){
-        if(!this.running)
-            this.run()
-            respnosive(this,false)
-        
-    }
+
     run(time){
-        this.running = true;
-        if(!this.game){
-             this.game = Game.newgame(this.highestscore)
-             this.olddisplay.clear()
-             this.olddisplay = this.game.display
-            }
         if(this.lasttime){
-            let frametime = Math.min(time - this.lasttime,50) / 1000
-            if(this.game.state == "lost"){
-                this.highestscore = Math.max(this.game.score,this.highestscore)
-                this.olddisplay = this.game.display
-                this.game = null
-                this.lasttime = null
-                Obstacle.prototype.speed = new Vector(-14,0)
-                this.running = false;
-            
-
-                return
-            }
-            else{
-                this.game.state= "playing"
-                this.game.update(frametime,this.keys)
-
-            }
+            let frametime = Math.min(time - this.lasttime, 50) / 1000;
+            this.game.update(frametime, this.keys);
         }
-        this.lasttime = time
-        requestAnimationFrame((time)=>{this.run(time)})
+        this.lasttime = time;
+        requestAnimationFrame((newtime)=>{ this.run(newtime); });
     }
-
 }
-
 
 class Display{
     constructor(game){
-        this.game = game
-        this.frametracker = new FrameTracker(game.scale)
-        this.actors = null
-        this.score = makeelment("div",{"class":"score"})
-        this.frame = makeelment("div",{"style":`width:${game.width * game.scale}px;height:${game.height * game.scale}px`,"class":`game`},[this.score])
-        document.body.appendChild(this.frame)
+        this.game = game;
+        this.frame = makeelment("main", { "class": "game stage-city", "style": `width:${game.width * game.scale}px;height:${game.height * game.scale}px` });
+        this.hud = makeelment("section", { "class": "hud" });
+        this.resourceWrap = makeelment("div", { "class": "resources" });
+        this.timeline = makeelment("div", { "class": "timeline-wrap" });
+        this.props = makeelment("div", { "class": "stage-props" });
+        this.actors = makeelment("div", { "class": "actor-layer" });
+        this.playerLayer = makeelment("div", { "class": "player-layer" });
+        this.toast = makeelment("div", { "class": "narrative-toast" });
+        this.news = makeelment("div", { "class": "news-messenger" });
+        this.note = makeelment("div", { "class": "resource-note" });
+        this.helpButton = makeelment("button", { "class": "help-button", "type": "button", "aria-label": "Show controls", "text": "?" });
+        this.helpPanel = makeelment("aside", { "class": "help-panel" });
+        this.overlay = makeelment("section", { "class": "overlay" });
+        this.hud.appendChild(this.timeline);
+        this.hud.appendChild(this.resourceWrap);
+        this.frame.appendChild(this.props);
+        this.frame.appendChild(this.actors);
+        this.frame.appendChild(this.playerLayer);
+        this.frame.appendChild(this.hud);
+        this.frame.appendChild(this.toast);
+        this.frame.appendChild(this.news);
+        this.frame.appendChild(this.note);
+        this.frame.appendChild(this.helpButton);
+        this.frame.appendChild(this.helpPanel);
+        this.frame.appendChild(this.overlay);
+        document.body.appendChild(this.frame);
+        this.overlaySignature = "";
+        this.lastStageKey = "";
+        this.helpPanel.innerHTML = `
+            <h3>Controls</h3>
+            <p><strong>Jump:</strong> Arrow Up or Space.</p>
+            <p><strong>Slide:</strong> Arrow Down or S while on the ground.</p>
+            <p><strong>Event boxes:</strong> hit one to open its two-option choice. Low boxes can be jumped over; high boxes can be slid under.</p>
+            <p><strong>Goal:</strong> collect resource icons and survive the timeline to 1945.</p>
+        `;
+        this.helpButton.addEventListener("click", ()=> this.toggleHelp());
+    }
+
+    toggleHelp(){
+        this.helpPanel.classList.toggle("show");
     }
 
     sync(newgame){
-        if(newgame.state != "lost")
-        bg = window.getComputedStyle(this.game.display.frame).backgroundPositionX
-        if(newgame.state == "lost")
-        this.game.display.frame.style.backgroundPositionX = bg 
+        this.game = newgame;
+        this.frame.setAttribute("class", `game stage-${newgame.stage ? newgame.stage.visual : "sunrise"} state-${newgame.state}`);
+        this.drawHUD(newgame);
+        this.drawStageProps(newgame);
+        this.drawActors(newgame);
+        this.drawMessages(newgame);
+        this.drawOverlay(newgame);
+    }
 
-        this.frame.setAttribute("class",`game ${newgame.state }`)
+    drawHUD(game){
+        const stage = game.stage;
+        this.timeline.innerHTML = `
+            <div class="year-line">
+                <span class="year-now">${game.yearLabel}</span>
+                <span class="stage-label">${stage ? stage.label : "Journey Complete"}</span>
+                <span class="year-end">1929 -> 1945</span>
+            </div>
+            <div class="timeline-track"><div class="timeline-fill" style="width:${game.totalProgress}%"></div></div>
+        `;
+        this.resourceWrap.innerHTML = VISIBLE_RESOURCE_ORDER.map((key)=>{
+            const value = game.resources[key];
+            return `
+                <div class="meter meter-${key}">
+                    <div class="meter-top"><span>${RESOURCE_LABELS[key]}</span><strong>${Math.round(value)}</strong></div>
+                    <div class="meter-track"><div class="meter-fill" style="width:${value}%"></div></div>
+                </div>
+            `;
+        }).join("");
+    }
 
-        if(this.actors) this.actors.remove()
-        this.score.textContent = `${this.game.highestscore ? `HI ${Math.trunc(this.game.highestscore)}` : ``} ${Math.trunc(newgame.score)}`
-        this.actors = makeelment("div",{},this.drawactors(newgame.obstacles.concat(newgame.player)))
-        this.frame.appendChild(this.actors)
+    drawStageProps(game){
+        const stage = game.stage;
+        if(!stage || this.lastStageKey == stage.key) return;
+        this.lastStageKey = stage.key;
+        this.props.innerHTML = stage.props.map((label, index)=> `<div class="stage-prop prop-${index + 1}">${label}</div>`).join("");
+    }
+
+    drawActors(game){
+        this.actors.innerHTML = "";
+        for(let actor of game.actors){
+            const iconClass = actor.kind == "collectible" ? ICON_ONLY_COLLECTIBLES[actor.data.label] : "";
+            let actorChildren;
+            if(actor.kind == "event"){
+                actorChildren = [
+                    makeelment("span", { "class": `event-icon event-icon-${actor.data.icon || "document"}`, "aria-label": actor.data.label }),
+                    makeelment("span", { "class": "event-label", "text": actor.data.label })
+                ];
+            }
+            else{
+                actorChildren = iconClass
+                    ? [makeelment("span", { "class": `collectible-icon icon-${iconClass}`, "aria-label": actor.data.label })]
+                    : [makeelment("span", { "text": actor.data.label })];
+            }
+            const element = makeelment("div", {
+                "class": `actor ${actor.kind} ${actor.data.lane ? `lane-${actor.data.lane}` : ""} ${iconClass ? "icon-only" : ""}`,
+                "data-action-hint": actor.data.actionHint || "EVENT",
+                "style": `top:${actor.postionVector.y * game.scale}px;left:${actor.postionVector.x * game.scale}px;width:${actor.size.x * game.scale}px;height:${actor.size.y * game.scale}px`
+            }, actorChildren);
+            this.actors.appendChild(element);
+        }
+        this.playerLayer.innerHTML = "";
+        const playerHeight = game.player.size.y * game.scale;
+        const playerVisualWidth = playerHeight;
+        const visualScaleY = game.player.isSliding ? 1.15 : drawingscale;
+        const visualScaleX = game.player.isSliding ? drawingscale * 1.14 : drawingscale;
+        const playerTop = (game.player.postionVector.y * game.scale) - (playerHeight * (visualScaleY - 1));
+        const playerLeft = (game.player.postionVector.x * game.scale) - ((playerVisualWidth - (game.player.size.x * game.scale)) / 2);
+        const player = makeelment("div", {
+            "class": `actor player ${game.player.state} ${game.invulnerability > 0 ? "recovering" : ""}`,
+            "style": `top:${playerTop}px;left:${playerLeft}px;width:${playerVisualWidth}px;height:${playerHeight}px;transform:scale(${visualScaleX}, ${visualScaleY});`
+        });
+        game.player.frames.update(player, game.player.state, playerVisualWidth, playerHeight);
+        this.playerLayer.appendChild(player);
+    }
+
+    drawMessages(game){
+        if(game.activeNarrative){
+            this.toast.textContent = game.activeNarrative.text;
+            this.toast.classList.add("show");
+        }
+        else{
+            this.toast.classList.remove("show");
+        }
+        if(game.newsMessage){
+            this.news.textContent = game.newsMessage;
+            this.news.classList.add("show");
+        }
+        else{
+            this.news.classList.remove("show");
+        }
+        if(game.noteTimer > 0 && game.lastResourceNote){
+            this.note.textContent = game.lastResourceNote;
+            this.note.classList.add("show");
+        }
+        else{
+            this.note.classList.remove("show");
+        }
+    }
+
+    drawOverlay(game){
+        const signature = `${game.state}:${game.currentChoice ? game.currentChoice.id : ""}:${game.choiceResult ? game.choiceResult.label : ""}:${game.encounteredFacts.size}`;
+        if(signature == this.overlaySignature) return;
+        this.overlaySignature = signature;
+        this.overlay.className = `overlay ${game.state == "playing" ? "" : "show"}`;
+        if(game.state == "start"){
+            this.overlay.innerHTML = `
+                <div class="screen-card start-card">
+                    <p class="kicker">APUSH choice-and-consequence runner</p>
+                    <h1>The Long Road: 1929–1945</h1>
+                    <p>Reach historical event boxes to make two-option choices, collect resource icons, and move year by year from the Great Depression through World War II.</p>
+                    <p class="start-controls">Jump with Arrow Up or Space. Slide with Arrow Down or S. Use the ? button anytime for controls.</p>
+                    <button class="primary-action" data-action="start">Begin Journey</button>
+                </div>
+            `;
+            this.overlay.querySelector("[data-action='start']").addEventListener("click", ()=> this.onStart());
+        }
+        else if(game.state == "choice"){
+            this.drawChoice(game);
+        }
+        else if(game.state == "hardship"){
+            this.overlay.innerHTML = `
+                <div class="screen-card hardship-card">
+                    <p class="kicker">Hardship Ending</p>
+                    <h2>The road becomes too difficult.</h2>
+                    <p>Your family could not make it through these years without severe loss. Millions of Americans faced impossible choices during the Great Depression.</p>
+                    <div class="summary-meters">${this.renderSummaryMeters(game)}</div>
+                    <button class="primary-action" data-action="restart">Restart Journey</button>
+                </div>
+            `;
+            this.overlay.querySelector("[data-action='restart']").addEventListener("click", ()=> this.onRestart());
+        }
+        else if(game.state == "complete"){
+            this.drawEnding(game);
+        }
+        else{
+            this.overlay.innerHTML = "";
+        }
+    }
+
+    choiceMode(choice){
+        return (choice.mode || "Decision Point").replace(/^Mini-Game:\s*/i, "Choice: ");
+    }
+
+    drawChoice(game){
+        const choice = game.currentChoice;
+        if(!choice) return;
+        if(!game.choiceResult){
+            this.overlay.innerHTML = `
+                <div class="screen-card choice-card">
+                    <p class="kicker">${this.choiceMode(choice)}</p>
+                    <h2>${choice.prompt}</h2>
+                    ${this.renderChoiceVisual(choice)}
+                    ${choice.instructions ? `<p class="choice-instructions">${choice.instructions}</p>` : ""}
+                    <div class="choice-actions">
+                        ${choice.options.map((option, index)=> `
+                            <button class="choice-button" data-choice="${index}">
+                                <strong>${option.label}</strong>
+                                <span>${formatEffect(option.effect)}</span>
+                            </button>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+            for(let button of this.overlay.querySelectorAll("[data-choice]")){
+                button.addEventListener("click", ()=> this.onChoice(Number(button.dataset.choice)));
+            }
+        }
+        else{
+            this.overlay.innerHTML = `
+                <div class="screen-card choice-card">
+                    <p class="kicker">Consequence</p>
+                    <h2>${game.choiceResult.label}</h2>
+                    <p>${game.choiceResult.consequence}</p>
+                    <p class="effect-line">${game.choiceResult.effect}</p>
+                    <button class="primary-action" data-action="continue">Continue</button>
+                </div>
+            `;
+            this.overlay.querySelector("[data-action='continue']").addEventListener("click", ()=> this.onContinueChoice());
+        }
+    }
+
+    renderChoiceVisual(choice){
+        const image = choice.image || historicalImageFor(choice.factIds, choice.prompt);
+        return `
+            <figure class="choice-visual">
+                <img class="choice-photo" src="${image.src}" alt="${image.alt}">
+                <span class="choice-visual-stamp">${this.choiceMode(choice)}</span>
+            </figure>
+        `;
+    }
+
+    drawEnding(game){
+        const facts = game.getEncounteredFacts();
+        const isolationNote = game.resources.readiness < 40
+            ? `<p class="ending-note">Your choices reflected strong isolationist instincts. Many Americans felt the same before Pearl Harbor.</p>`
+            : "";
+        this.overlay.innerHTML = `
+            <div class="screen-card ending-card">
+                <p class="kicker">Journey Complete</p>
+                <h2>Journey Complete: 1929–1945</h2>
+                <div class="summary-meters">${this.renderSummaryMeters(game)}</div>
+                ${isolationNote}
+                <div class="takeaways">
+                    <h3>APUSH Takeaways</h3>
+                    <ol>
+                        <li>The Great Depression began after the 1929 stock market crash but was worsened by bank failures, unemployment, falling demand, and weak relief systems.</li>
+                        <li>The New Deal expanded the role of the federal government through relief, recovery, and reform.</li>
+                        <li>Programs like the CCC, WPA, PWA, TVA, FDIC, Social Security, and Wagner Act tried to provide jobs, stability, and worker protections.</li>
+                        <li>Environmental disaster and farm debt pushed many families to migrate, especially from the Great Plains.</li>
+                        <li>The U.S. entered WWII gradually: neutrality debates, defense production, Lend-Lease, Pearl Harbor, and then formal war.</li>
+                        <li>Wartime production and military mobilization created jobs and helped end Depression-era unemployment.</li>
+                        <li>The period transformed the relationship between citizens, the federal government, and the economy.</li>
+                    </ol>
+                    <p>The dry farm/migration stage represented the Dust Bowl and its effects.</p>
+                    <p>War work created opportunities, but sacrifice, discrimination, incarceration, and inequality shaped the era too.</p>
+                </div>
+                <div class="facts-panel">
+                    <h3>Historical Facts Encountered</h3>
+                    <p>You encountered ${facts.length} APUSH events, policies, and developments.</p>
+                    <ol>
+                        ${facts.map((fact)=> `<li><strong>${fact.year}:</strong> ${fact.label}</li>`).join("")}
+                    </ol>
+                </div>
+                <button class="primary-action" data-action="restart">Restart Journey</button>
+            </div>
+        `;
+        this.overlay.querySelector("[data-action='restart']").addEventListener("click", ()=> this.onRestart());
+    }
+
+    renderSummaryMeters(game){
+        return VISIBLE_RESOURCE_ORDER.map((key)=> `
+            <div class="summary-meter">
+                <span>${RESOURCE_LABELS[key]}</span>
+                <strong>${Math.round(game.resources[key])}</strong>
+            </div>
+        `).join("");
     }
 
     clear(){
-        this.frame.remove()
-    }
-
-    drawactors(actors){
-        let actorselemtns = []
-        for(let actor of actors){
-            let element = makeelment("div",{"style":`top:${actor.postionVector.y * this.game.scale}px;left:${actor.postionVector.x * this.game.scale}px;width:${actor.size.x * this.game.scale}px;height:${actor.size.y * this.game.scale}px;transform:scale(${drawingscale})`,"class":`actor ${actor.type} ${actor.type == "player" ? actor.state : ""}`})
-            actorselemtns.push(element)
-            actor.frames.update(element,actor.state,actor)
-        }
-        return actorselemtns
-    }
-    changesizeframe(scaleX,scaleY){
-        //Xframewidrh = newwidth
-        //x = newwidth / frame
-        this.frame.style.transform = `scaleX(${scaleX}) scaleY(${scaleY})`
-    }
-    
-}
-
-
-class Player{
-    constructor(speedVector,postionVector,state){
-        this.state = state
-        this.speedVector = speedVector
-        this.postionVector = postionVector
-        this.lastarrowup = true
-        this.allowedjumps = 1
-        this.jumps = this.allowedjumps;
-        this.state = "idle"
-        this.firstupdate = true
-        this.frames = new FrameTracker(scale)
-        this.frames.add(this.size,"idle",6,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Idle.png",0.2)
-        this.frames.add(this.size, "running",8,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Run.png",0.25)
-        this.frames.add(this.size, "jumping",11,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Jump.png",0.25)
-
-        this.frames.add(this.size,"Attack_1",10,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Attack_1.png",0.2)
-        this.frames.add(this.size,"Attack_2",4,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Attack_2.png",0.2)
-        this.frames.add(this.size,"Attack_3",7,"./assets/craftpix-net-439247-free-fantasy-chibi-male-sprites-pixel-art/Wizard/Attack_3.png",0.2)
-
-
-    }
-
-    get type(){
-        return "player"
-    }
-
-    update(game,timeframe,arrowkey){
-        let suggestjump = false;
-
-        for(let obstacle of game.obstacles){
-            if(obstacle.postionVector.x > this.postionVector.x + this.size.x && obstacle.postionVector.x - (-Obstacle.prototype.speed.x / 3.1 )< this.postionVector.x + this.size.x)
-                suggestjump = true
-        }
-        if (this.postionVector.y + this.size.y < game.height - GroundLevel  ){
-            if(this.jumps > 0 &&  arrowkey.arrowup && !this.lastarrowup ){
-                this.speedVector.y = jump + 5
-                this.jumps--;
-            }
-            this.state = "jumping"
-            //if the player is in the air incrase its speed according to gravitiy
-            this.speedVector.y = this.speedVector.y + timeframe * gravitiy
-        }
-        else if(arrowkey.arrowup && this.speedVector.y >= 0){
-            //if the player hit arrow up and the player is not jumping
-            //we make the player jump by reversing its speed
-            this.speedVector.y = jump 
-            this.jumps = this.allowedjumps
-        }
-        // for cheaters
-        // else if(this.speedVector.y >= 0 && suggestjump){
-        //     this.speedVector.y = jump
-        // }
-        else{
-            if(!this.firstupdate)
-            this.state = "running"
-            this.firstupdate = false
-            this.speedVector.y = 0
-        }
-        //this part for appling the movment
-        let moveYdistance = this.speedVector.y * timeframe
-        if(!(this.postionVector.y +this.size.y + moveYdistance >game.height - GroundLevel)){
-            this.postionVector.y = this.postionVector.y + moveYdistance
-
-        }
-        else{
-            this.postionVector.y =  game.height - GroundLevel -this.size.y
-        }
-        this.lastarrowup = arrowkey.arrowup
-        if(keys.space)
-            {
-                this.state = `Attack_3`
-            }
-            console.log(this.state)
-
+        this.frame.remove();
     }
 }
-Player.prototype.size = new Vector(0.5,1)
 
+let game = new GameRunner(keys);
 
-class Obstacle{
-    constructor(speedVector,postionVector,state){
-        this.speedVector = speedVector
-        this.postionVector = postionVector
-        this.state = state
-    }
-
-    get type(){
-        return "obstacle"
-    }
-
-    update(game,timeframe){
-        if(overlap(game.player , this)){
-            //the player hit an obstacle we make the game lost
-            game.state = "lost"
-        }
-        else if(this.postionVector.x + this.size.x < -100){
-            //if its x postion smaller than 0 it means that the obstacle is of the screen
-            //and we should remove it from the qeue
-            game.obstacles.shift()
-        }
-        else {
-            //we update the obstacle postion according to its speed
-            let moveX = rounddecimat(this.speedVector.x * timeframe)
-            this.postionVector.x = rounddecimat(this.postionVector.x + moveX)
-        }
-         if(this.postionVector.x - 10 < game.player.postionVector.x  + game.player.size.x&& this.postionVector.y <= game.player.postionVector.y && game.player.postionVector.y + game.player.size.y <= this.postionVector.y + this.size.y){
-            this.state = "attack"
-            this.frames.rest("walking")
-        }
-    }
-    static create(postionVector){
-        postionVector.add(new Vector(0 , -(this.prototype.size.y + GroundLevel)))
-        return new this(this.prototype.speed,postionVector,"walking")
-    }
-}
-Obstacle.prototype.speed = new Vector(-14,0)
-
-
-
-class Skelton extends Obstacle{
-    constructor(speedVector,postionVector,state){
-        super(speedVector,postionVector,state)
-        this.frames = new FrameTracker(scale)
-        console.log(this.size , "sizehere")
-        this.frames.add(this.size,"walking",8,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Skeleton/Walk.png",0.1)
-        this.frames.add(this.size,"attack",7,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Skeleton/Attack_3.png",0.1)
-    }
-    get type(){
-        return"obstaclemid"
-    }
-
+function respnosive(game, smouth){
+    if(!game.olddisplay || !game.olddisplay.frame) return;
+    if(smouth) game.olddisplay.frame.style.transition = "transform 0.25s ease";
+    else game.olddisplay.frame.style.transition = "";
+    const baseWidth = scale * width;
+    const baseHeight = scale * height;
+    const scaleX = Math.min(1, document.documentElement.clientWidth / baseWidth, document.documentElement.clientHeight / baseHeight);
+    game.olddisplay.frame.style.transform = `scale(${scaleX})`;
 }
 
-class Sperm extends Obstacle{
-    constructor(speedVector,postionVector,state){
-        super(speedVector,postionVector,state)
-        this.frames = new FrameTracker(scale)
-        this.frames.add(this.size,"walking",7,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Fire_Spirit/Walk.png",0.1)
-        this.frames.add(this.size,"attack",7,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Fire_Spirit/Attack.png",0.1)
-    }
-
-    static create(postionVector){
-        postionVector.add(new Vector(0 , -(this.prototype.size.y + GroundLevel + Math.floor(Math.random()* 10))))
-        return new this(this.prototype.speed,postionVector,"walking")
-    }
-
-}
-class Plent extends Obstacle{
-    constructor(speedVector,postionVector,state){
-        super(speedVector,postionVector,state)
-        this.frames = new FrameTracker(scale)
-        this.frames.add(this.size,"walking",9,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Plent/Walk.png",0.1)
-        this.frames.add(this.size,"attack",6,"./assets/craftpix-net-339194-free-fantasy-enemies-pixel-art-sprite-pack/Plent/Attack_1.png",0.1)
-    }
-
-
-}
-Sperm.prototype.size = new Vector(0.8,1.6)
-Plent.prototype.size = new Vector(0.5,1)
-
-Skelton.prototype.size = new Vector(0.5,1)
-
-
-
-function createKeyframes(game) {
-    const container = document.querySelector('.container');
-    const containerWidth = width * scale
-
-    // Create a style element
-    const style = document.createElement('style');
-    style.type = 'text/css';
-    const keyframes = `
-                @keyframes gamebg {
-                    from {
-                        background-position: 0 bottom;
-                    }
-                    to {
-                        background-position: -${containerWidth}px bottom;
-                    }
-                }
-            `;
-            // Append the keyframes rule to the style element
-            style.innerHTML = keyframes;
-            // Append the style element to the document head
-            document.head.appendChild(style);
-        }
-
-
-
-let game = new GameRunner(keys)
-
-window.addEventListener("keydown",(e)=> {
-    if(keys.arrowup && ( !game.game ||game.game.state ==  "idle")){
-        keys.arrowup = false
-        game.start()
-    }
-    })
-window.addEventListener("touchstart",()=>{
-    if(keys.arrowup && ( !game.game ||game.game.state ==  "idle")){
-        keys.arrowup = false
-        game.start()
-    }
-})
-
-
-function respnosive(game,smouth){
-    if(smouth) game.olddisplay.frame.style.transition = "0.5s"
-    else game.olddisplay.frame.style.transition = ""
-    let scaleX = document.documentElement.clientWidth / (scale * width) 
-    game.olddisplay.changesizeframe(scaleX,scaleX)
-}
-window.addEventListener("resize",()=>{
-    respnosive(game,true)
-
-})
-
-
-// setInterval(()=>{
-//     console.log(window.innerWidth)
-// },500)
+window.addEventListener("resize", ()=>{
+    respnosive(game, true);
+});

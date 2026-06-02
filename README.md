@@ -1,55 +1,57 @@
-# Endless Runner
+# The Long Road: 1929–1945
 
-Welcome to the Endless Runner! This project is a clone of the classic Chrome Dino game, built using HTML, CSS, and JavaScript.
+An APUSH choice-and-consequence endless runner adapted from the original open-source Endless Runner project by 3akrot.
 
-## Table of Contents
+The player travels chronologically from the 1929 Stock Market Crash through the Great Depression, New Deal reforms and work relief, World War II entry, wartime mobilization, and the end of the war in 1945.
 
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+## Play Locally
 
-## Introduction
+Open `index.html` directly in a browser, or run a small local server:
 
-The Endless Runner is a fun and engaging game where you control a character to jump over obstacles and achieve the highest score possible. The game features pixel art graphics and smooth animations.
-live-demo:https://game011.netlify.app/
+```sh
+python3 -m http.server 8000
+```
 
-## Features
+Then open:
 
-- Classic endless runner gameplay
-- Pixel art graphics
-- Smooth animations
-- Responsive design
-- High score tracking
+```text
+http://localhost:8000
+```
 
-## Installation
+## Controls
 
-To get started with the Endless Runner, follow these steps:
+- Press `Arrow Up` or `Space` to jump.
+- Tap the screen on touch devices.
+- Use the on-screen buttons for start, choices, ending, and restart.
 
-1. Clone the repository:
-    ```sh
-    git clone https://github.com/3akrot/Endless-Runner
-    ```
-2. Navigate to the project directory:
-    ```sh
-    cd Endless-Runner
-    ```
-3. Open `index.html` in your preferred web browser.
+## APUSH Systems
 
-## Usage
+- Chronological year-by-year 1929-1945 timeline
+- Money, Food, and Hope meters, with War Readiness tracked internally for ending nuance
+- Historical event boxes that open mini-game cards
+- Choice and mini-game cards with tradeoffs and resource consequences
+- Narrative milestone popups
+- News messenger for the gradual arrival of World War II
+- Hardship ending and 1945 completion ending
+- Historical Facts Encountered list on the ending screen
 
-- Use the `Arrow Up` key or tap the screen to make the character jump.
-- Avoid obstacles to keep running and achieve a high score.
-- The game will track your highest score.
+## Historical Focus
 
-## Contributing
+The game includes 45 trackable APUSH facts, events, policies, and developments, including bank failures, buying on margin, breadlines, Hoovervilles, New Deal programs, farm migration, neutrality debates, Lend-Lease, Pearl Harbor, wartime production, rationing, war bonds, women in industry, Japanese American incarceration, wartime employment, and the end of World War II.
 
-Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
+The game intentionally does not imply that the New Deal alone ended the Great Depression. New Deal programs offered relief, reform, and some recovery, while wartime mobilization and federal spending dramatically expanded employment and production.
 
-## License
+## Attribution
 
-This project is licensed under the [MIT License](LICENSE).
+This project was adapted from:
 
-Enjoy the game and have fun! 
+- Original repository: https://github.com/3akrot/Endless-Runner
+- Original concept: a browser-based HTML, CSS, and JavaScript endless runner inspired by the Chrome Dino game
+
+Sprite and background assets remain from the original repository's Craftpix asset folders. The included license files point to:
+
+- https://craftpix.net/file-licenses/
+
+Historical choice-card images are stored in `assets/historical/` and were selected from public historical sources available through Wikimedia Commons, including National Archives and related public-domain or freely licensed classroom-appropriate materials.
+
+The original README described the project as MIT licensed, but the cloned repository did not include a top-level `LICENSE` file. This adaptation preserves the existing attribution and bundled asset license references.
