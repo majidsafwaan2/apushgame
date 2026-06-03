@@ -727,7 +727,7 @@ const APUSH_CONTENT = {
             factIds: ["emergency-banking-act", "fdic"],
             options: [
                 { label: "I want to trust the reopened banks", effect: { hope: 10, money: 5 }, consequence: "Bank reform and deposit insurance strengthen confidence.", factIds: ["bank-holiday", "fdic"] },
-                { label: "I want to keep cash hidden", effect: { money: 4, hope: -6 }, consequence: "Cash feels safer now, but confidence recovers more slowly.", factIds: ["bank-failures"] }
+                { label: "I want to keep some cash close until trust returns", effect: { money: 4, hope: -3 }, consequence: "Cash feels safer after failures, but confidence recovers more slowly.", factIds: ["bank-failures"] }
             ]
         },
         {
@@ -793,7 +793,7 @@ const APUSH_CONTENT = {
             factIds: ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"],
             options: [
                 { label: "I want to take the factory job", effect: { money: 14, food: 8, readiness: 10, hope: -3 }, consequence: "The wages help, but long hours and tension weigh on the family.", factIds: ["arsenal-of-democracy"] },
-                { label: "I want to avoid war industries", effect: { hope: 5, money: -8, readiness: -8 }, consequence: "You avoid war work, but miss the growing defense economy.", factIds: ["isolationism-debate"] }
+                { label: "I want to keep looking for nonwar work nearby", effect: { hope: 5, money: -5, readiness: -6 }, consequence: "You protect personal beliefs, but miss some of the growing defense economy.", factIds: ["isolationism-debate"] }
             ]
         },
         {
@@ -826,7 +826,7 @@ const APUSH_CONTENT = {
             factIds: ["rationing", "office-price-administration"],
             options: [
                 { label: "I want to follow ration rules", effect: { readiness: 10, food: 7 }, consequence: "Rationing stretches supplies and supports the war effort.", factIds: ["rationing", "office-price-administration"] },
-                { label: "I want to ignore rationing", effect: { food: 8, hope: -7, readiness: -10 }, consequence: "Short-term food improves, but community trust and readiness fall.", factIds: ["rationing"] }
+                { label: "I want to stretch supplies through local swaps", effect: { food: 6, hope: -2, readiness: -5 }, consequence: "Families improvise under pressure, but ration systems depend on shared rules.", factIds: ["rationing"] }
             ]
         }
     ]
@@ -961,22 +961,22 @@ const YEARLY_STAGES = [
             "mg-1929-crash",
             "Mini-Game: Crash Response",
             "The market crashes and confidence breaks.",
-            "Choose the response that keeps the family most stable.",
+            "Choose which risk feels more manageable.",
             ["stock-crash-1929"],
             [
                 { label: "I want to sell what we can and buy food", effect: { food: 8, money: -4 }, consequence: "Food security rises, but cash gets tighter.", factIds: ["stock-crash-1929"] },
-                { label: "I want to buy more stock on credit", effect: { money: -10, hope: -5 }, consequence: "Margin-style risk deepens the loss.", factIds: ["buying-on-margin"] }
+                { label: "I want to hold our shares and avoid panic-selling", effect: { money: -3, hope: 5 }, consequence: "You preserve hope for a rebound, but falling prices still hurt.", factIds: ["stock-crash-1929", "buying-on-margin"] }
             ]
         )),
         yearEvent(8, "Buying on Margin", "Buying with borrowed money turns falling prices into deeper losses.", ["buying-on-margin"], miniGame(
             "mg-1929-margin",
-            "Mini-Game: Spot the Risk",
+            "Mini-Game: Borrowed Risk",
             "A neighbor says stocks will bounce back if everyone borrows more.",
-            "Pick the historically safer explanation.",
+            "Choose how much risk your family can carry.",
             ["buying-on-margin"],
             [
-                { label: "I think borrowing makes the losses worse", effect: { hope: 6 }, consequence: "Correct: margin buying made collapse more dangerous.", factIds: ["buying-on-margin"] },
-                { label: "I think borrowing makes stocks safe", effect: { money: -6, hope: -3 }, consequence: "That mistake was part of the danger.", factIds: ["buying-on-margin"] }
+                { label: "I want to reduce debt before losses grow", effect: { money: -2, hope: 6 }, consequence: "Less borrowed money lowers risk, though selling can lock in losses.", factIds: ["buying-on-margin"] },
+                { label: "I want to borrow a little and bet on a rebound", effect: { money: -6, hope: 4 }, consequence: "The rebound hope is real, but margin debt makes the fall more dangerous.", factIds: ["buying-on-margin"] }
             ]
         ))
     ], [
@@ -1000,11 +1000,11 @@ const YEARLY_STAGES = [
             "mg-1930-breadline",
             "Mini-Game: Relief Line",
             "The breadline is long and work is scarce.",
-            "Pick the action that protects food without pretending relief is enough.",
+            "Choose how to balance survival, pride, and uncertainty.",
             ["breadlines"],
             [
                 { label: "I want to accept relief and keep looking for work", effect: { food: 10, hope: 2 }, consequence: "Relief helps survival while work remains uncertain.", factIds: ["breadlines", "unemployment-rises"] },
-                { label: "I want to refuse relief completely", effect: { food: -8, hope: 3 }, consequence: "Pride remains, but hunger grows.", factIds: ["breadlines"] }
+                { label: "I want to rely on neighbors and odd jobs first", effect: { food: -3, hope: 5 }, consequence: "Community and independence matter, but local help is stretched thin.", factIds: ["breadlines"] }
             ]
         ))
     ], [
@@ -1021,7 +1021,7 @@ const YEARLY_STAGES = [
             ["unemployment-rises"],
             [
                 { label: "I will search every day and ration meals", effect: { hope: 5, food: -4 }, consequence: "Hope stays alive, but meals shrink.", factIds: ["unemployment-rises"] },
-                { label: "I will stop searching for now", effect: { food: 2, hope: -8 }, consequence: "You save energy, but discouragement spreads.", factIds: ["unemployment-rises"] }
+                { label: "I will conserve energy and wait for a real opening", effect: { food: 2, hope: -3 }, consequence: "You protect strength, but waiting can deepen discouragement.", factIds: ["unemployment-rises"] }
             ]
         )),
         yearEvent(9, "Hoovervilles", "Temporary shelters appear as families lose homes.", ["hoovervilles"], miniGame(
@@ -1044,22 +1044,22 @@ const YEARLY_STAGES = [
             "mg-1932-election",
             "Mini-Game: Read the Promise",
             "Voters hear promises of relief, recovery, and reform.",
-            "Choose the best summary of what people expected.",
+            "Choose which argument feels most convincing in 1932.",
             ["fdr-elected-1932"],
             [
                 { label: "I want the federal government to do more", effect: { hope: 8 }, consequence: "The election signals demand for stronger federal response.", factIds: ["fdr-elected-1932"] },
-                { label: "I want things to stay the same", effect: { hope: -6 }, consequence: "That misses why many voters turned to Roosevelt.", factIds: ["fdr-elected-1932"] }
+                { label: "I want local aid and private business to lead recovery", effect: { money: 2, hope: -2 }, consequence: "Many Americans valued local action, but the crisis has outgrown it.", factIds: ["fdr-elected-1932", "breadlines"] }
             ]
         )),
         yearEvent(9, "Emergency Relief Pressure", "Private charity cannot meet the scale of the crisis.", ["breadlines", "unemployment-rises"], miniGame(
             "mg-1932-relief",
             "Mini-Game: Relief Request",
             "Your family needs food before steady work returns.",
-            "Choose a realistic survival strategy.",
+            "Choose which help you are willing to seek.",
             ["breadlines"],
             [
                 { label: "I want to ask for emergency relief", effect: { food: 10, hope: -2 }, consequence: "Relief helps, though stigma and limits remain.", factIds: ["breadlines"] },
-                { label: "I want to wait for private charity only", effect: { food: -7, hope: 2 }, consequence: "Local aid is overwhelmed.", factIds: ["breadlines"] }
+                { label: "I want to try private charity and day labor first", effect: { food: -3, hope: 4 }, consequence: "That protects pride and independence, but aid remains uncertain.", factIds: ["breadlines", "unemployment-rises"] }
             ]
         ))
     ], [
@@ -1075,30 +1075,29 @@ const YEARLY_STAGES = [
             ["bank-holiday", "emergency-banking-act"],
             [
                 { label: "I want to use the reopened inspected banks", effect: { hope: 9, money: 4 }, consequence: "Banking reform helps confidence return.", factIds: ["emergency-banking-act", "bank-holiday"] },
-                { label: "I want to hide all our cash at home", effect: { money: 2, hope: -5 }, consequence: "Fear remains high and recovery is slower.", factIds: ["bank-failures"] }
+                { label: "I want to keep some cash close until trust returns", effect: { money: 3, hope: -2 }, consequence: "Caution feels safer after failures, though confidence rebuilds more slowly.", factIds: ["bank-failures", "bank-holiday"] }
             ]
         )),
         yearEvent(7, "Fireside Chats and FDIC", "Radio messages explain reform and FDIC protects deposits.", ["fireside-chats", "fdic"], miniGame(
             "mg-1933-fdic",
-            "Mini-Game: Match the Reform",
-            "Which reform directly protects bank deposits?",
-            "Pick the correct New Deal reform.",
+            "Mini-Game: Trust the Bank?",
+            "A Fireside Chat explains deposit insurance.",
+            "Choose how quickly to trust the new protection.",
             ["fdic"],
             [
-                { label: "I choose the FDIC", effect: { hope: 10 }, consequence: "Correct: the FDIC protects bank deposits.", factIds: ["fdic"] },
-                { label: "I choose the AAA", effect: { hope: -3 }, consequence: "The AAA focused on agriculture, not bank deposits.", factIds: ["aaa"] },
-                { label: "I choose the WPA", effect: { hope: -3 }, consequence: "The WPA created jobs later, not deposit insurance.", factIds: ["wpa"] }
+                { label: "I want to deposit a little after hearing about the FDIC", effect: { hope: 8, money: 2 }, consequence: "Deposit insurance helps restore trust without erasing every fear.", factIds: ["fdic", "fireside-chats"] },
+                { label: "I want to wait and see whether neighbors trust it", effect: { money: 2, hope: -2 }, consequence: "Caution is understandable after failures, but recovery depends on confidence.", factIds: ["fdic", "bank-failures"] }
             ]
         )),
         yearEvent(11, "CCC, PWA, TVA, AAA", "The New Deal experiments with jobs, public works, power, and farm policy.", ["ccc", "pwa", "tva", "aaa", "first-hundred-days"], miniGame(
             "mg-1933-programs",
             "Mini-Game: Pick a Work Program",
             "Your family needs income and public work is opening.",
-            "Choose a program that directly creates employment.",
+            "Choose which sacrifice your family can manage.",
             ["ccc", "pwa", "tva"],
             [
-                { label: "I want to take a CCC conservation job", effect: { money: 8, hope: 7 }, consequence: "The CCC puts young men to work on conservation projects.", factIds: ["ccc"] },
-                { label: "I want to wait for markets to recover alone", effect: { money: -6, hope: -4 }, consequence: "Markets do not recover quickly enough for many families.", factIds: ["unemployment-rises"] }
+                { label: "I want to take a CCC conservation job away from home", effect: { money: 8, hope: 5 }, consequence: "The CCC brings wages and purpose, though separation is hard.", factIds: ["ccc"] },
+                { label: "I want to stay near family and search locally", effect: { hope: 3, money: -4 }, consequence: "Staying protects family ties, but local work remains scarce.", factIds: ["unemployment-rises"] }
             ]
         ))
     ], [
@@ -1114,7 +1113,7 @@ const YEARLY_STAGES = [
             ["cwa"],
             [
                 { label: "I want to buy food and save a little", effect: { food: 8, money: 4 }, consequence: "Short-term work offers relief, not a permanent fix.", factIds: ["cwa"] },
-                { label: "I want to act like the crisis is over", effect: { money: -4, hope: -4 }, consequence: "The Depression is not over yet.", factIds: ["unemployment-rises"] }
+                { label: "I want to pay old debts before they grow", effect: { money: 2, hope: 4, food: -2 }, consequence: "Debt pressure eases, but the pantry gets thinner.", factIds: ["cwa", "farm-foreclosures"] }
             ]
         )),
         yearEvent(9, "Dry Farm Conditions", "Dry land and debt make farming harder.", ["dry-dust-bowl-conditions", "farm-foreclosures"], miniGame(
@@ -1125,7 +1124,7 @@ const YEARLY_STAGES = [
             ["dry-dust-bowl-conditions", "farm-foreclosures"],
             [
                 { label: "I want to seek farm aid and ration food", effect: { money: 5, food: -3, hope: 4 }, consequence: "Aid helps, but the land is still under stress.", factIds: ["aaa", "farm-foreclosures"] },
-                { label: "I want to ignore the debt notice", effect: { money: -8, hope: -4 }, consequence: "Foreclosure risk grows.", factIds: ["farm-foreclosures"] }
+                { label: "I want to stay independent and renegotiate locally", effect: { hope: 5, money: -4, food: -2 }, consequence: "Independence matters, but foreclosure pressure remains.", factIds: ["farm-foreclosures"] }
             ]
         ))
     ], [
@@ -1137,22 +1136,22 @@ const YEARLY_STAGES = [
             "mg-1935-wpa",
             "Mini-Game: Build the Community",
             "A WPA project is hiring.",
-            "Choose a project that gives wages and public benefit.",
+            "Choose how to weigh public work and independence.",
             ["wpa"],
             [
                 { label: "I want to build roads, schools, and parks", effect: { money: 12, food: 6, hope: 8 }, consequence: "WPA work brings wages and useful public projects.", factIds: ["wpa"] },
-                { label: "I want to reject all public work", effect: { money: -8, hope: -3 }, consequence: "Some criticized federal jobs, but many families needed them.", factIds: ["new-deal-opposition"] }
+                { label: "I want to keep searching for private work", effect: { hope: 4, money: -5 }, consequence: "Private work feels more independent, but jobs remain scarce.", factIds: ["new-deal-opposition", "unemployment-rises"] }
             ]
         )),
         yearEvent(7, "Social Security Act", "The Social Security Act creates a federal safety net.", ["social-security-act"], miniGame(
             "mg-1935-social-security",
-            "Mini-Game: Safety Net",
+            "Mini-Game: Safety Net Debate",
             "Older Americans need long-term support.",
-            "Choose the policy that creates a federal safety net.",
+            "Choose which concern matters more to you.",
             ["social-security-act"],
             [
-                { label: "I choose the Social Security Act", effect: { hope: 10 }, consequence: "Correct: Social Security changes expectations of federal responsibility.", factIds: ["social-security-act"] },
-                { label: "I choose cash-and-carry", effect: { hope: -3 }, consequence: "That policy relates to neutrality and war trade later.", factIds: ["cash-and-carry"] }
+                { label: "I want a federal safety net for old age", effect: { hope: 10 }, consequence: "Social Security changes expectations of federal responsibility.", factIds: ["social-security-act"] },
+                { label: "I worry payroll taxes hurt workers right now", effect: { money: 3, hope: -2 }, consequence: "Immediate costs worry critics, even as long-term protection grows.", factIds: ["social-security-act", "new-deal-opposition"] }
             ]
         )),
         yearEvent(11, "Wagner Act", "The Wagner Act protects workers' rights to organize.", ["wagner-act"], miniGame(
@@ -1163,7 +1162,7 @@ const YEARLY_STAGES = [
             ["wagner-act"],
             [
                 { label: "I want to support worker organizing", effect: { hope: 8, money: 3 }, consequence: "Worker voice grows under the Wagner Act.", factIds: ["wagner-act"] },
-                { label: "I want to avoid all conflict", effect: { money: 3, hope: -5 }, consequence: "Short-term calm may reduce worker power.", factIds: ["wagner-act"] }
+                { label: "I want to avoid risking the job I already have", effect: { money: 4, hope: -3 }, consequence: "Short-term security matters, but worker power may stay limited.", factIds: ["wagner-act"] }
             ]
         ))
     ], [
@@ -1190,7 +1189,7 @@ const YEARLY_STAGES = [
             ["farm-foreclosures"],
             [
                 { label: "I want neighbors to pool resources and help", effect: { money: -3, hope: 8 }, consequence: "Community support can soften hardship.", factIds: ["farm-foreclosures"] },
-                { label: "I want every family to face it alone", effect: { hope: -8 }, consequence: "Isolation makes the crisis feel worse.", factIds: ["farm-foreclosures"] }
+                { label: "I want to save our cash for my own family", effect: { money: 4, hope: -3 }, consequence: "Protecting your household is understandable, but community support weakens.", factIds: ["farm-foreclosures"] }
             ]
         ))
     ], [
@@ -1202,22 +1201,22 @@ const YEARLY_STAGES = [
             "mg-1937-court",
             "Mini-Game: Constitutional Check",
             "A proposal would add Supreme Court justices.",
-            "Choose the concern many critics raised.",
+            "Choose which argument you find more convincing.",
             ["court-packing"],
             [
-                { label: "I think the concern is balance of powers", effect: { hope: 5 }, consequence: "Critics argued the plan threatened constitutional balance.", factIds: ["court-packing"] },
-                { label: "I think the concern is Pearl Harbor", effect: { hope: -3 }, consequence: "Pearl Harbor happens later, in 1941.", factIds: ["pearl-harbor"] }
+                { label: "I want FDR to protect New Deal programs from the Court", effect: { hope: 4 }, consequence: "Supporters saw the plan as a way to preserve relief and reform.", factIds: ["court-packing", "new-deal-opposition"] },
+                { label: "I worry the plan threatens balance of powers", effect: { hope: 3 }, consequence: "Critics argued the plan threatened constitutional balance.", factIds: ["court-packing"] }
             ]
         )),
         yearEvent(10, "New Deal Opposition", "Critics debate federal power, costs, and slow recovery.", ["new-deal-opposition"], miniGame(
             "mg-1937-opposition",
             "Mini-Game: Weigh the Criticism",
             "Neighbors argue about the New Deal.",
-            "Pick the most nuanced interpretation.",
+            "Choose which criticism you take most seriously.",
             ["new-deal-opposition"],
             [
-                { label: "I think it helped but did not fully end the Depression", effect: { hope: 7 }, consequence: "That is the key APUSH nuance.", factIds: ["new-deal-opposition", "unemployment-rises"] },
-                { label: "I think it instantly solved everything", effect: { hope: -7 }, consequence: "Recovery was incomplete before wartime mobilization.", factIds: ["unemployment-rises"] }
+                { label: "I think relief is necessary even if recovery is incomplete", effect: { food: 4, hope: 5 }, consequence: "The New Deal helps many families without fully ending the Depression.", factIds: ["new-deal-opposition", "unemployment-rises"] },
+                { label: "I worry federal programs cost too much and move too slowly", effect: { money: 3, hope: -2 }, consequence: "Critics raised real concerns, while mass unemployment still demanded action.", factIds: ["new-deal-opposition"] }
             ]
         ))
     ], [
@@ -1229,11 +1228,11 @@ const YEARLY_STAGES = [
             "mg-1938-recovery",
             "Mini-Game: Recovery Check",
             "A headline says the Depression is over.",
-            "Pick the accurate response.",
+            "Choose how your family plans for an uneven recovery.",
             ["unemployment-rises", "new-deal-opposition"],
             [
-                { label: "I think recovery is still uneven and incomplete", effect: { hope: 5 }, consequence: "Correct: mass unemployment remains before WWII mobilization.", factIds: ["unemployment-rises"] },
-                { label: "I think every family is secure now", effect: { hope: -6, food: -3 }, consequence: "That oversimplifies the late 1930s.", factIds: ["new-deal-opposition"] }
+                { label: "I want to keep using relief and work programs", effect: { food: 4, hope: 5 }, consequence: "Support remains important because recovery is still uneven.", factIds: ["unemployment-rises"] },
+                { label: "I want to reduce dependence and rebuild private work", effect: { money: 3, hope: 2, food: -3 }, consequence: "Private recovery is a real hope, but many families are not secure yet.", factIds: ["new-deal-opposition"] }
             ]
         ))
     ], [
@@ -1245,11 +1244,11 @@ const YEARLY_STAGES = [
             "mg-1939-poland",
             "Mini-Game: News Bulletin",
             "News from Europe reaches the radio.",
-            "Choose the accurate sequence.",
+            "Choose how the news changes your view of U.S. policy.",
             ["germany-invades-poland", "britain-france-declare-war"],
             [
-                { label: "I think Germany invades Poland first", effect: { hope: 4 }, consequence: "Correct sequence for 1939.", factIds: ["germany-invades-poland", "britain-france-declare-war"] },
-                { label: "I think Pearl Harbor happens first", effect: { hope: -5 }, consequence: "Pearl Harbor comes later, in 1941.", factIds: ["pearl-harbor"] }
+                { label: "I want to aid Britain and France without sending troops", effect: { readiness: 4, hope: 2 }, consequence: "War in Europe pushes some Americans toward limited aid.", factIds: ["germany-invades-poland", "britain-france-declare-war"] },
+                { label: "I want to keep the U.S. out of Europe's war", effect: { hope: 4, readiness: -4 }, consequence: "Isolationism reflects fear of repeating World War I.", factIds: ["isolationism-debate"] }
             ]
         )),
         yearEvent(9, "Neutrality and Cash-and-Carry", "The U.S. debates neutrality while cash-and-carry expands aid.", ["neutrality-acts", "isolationism-debate", "cash-and-carry"], miniGame(
@@ -1276,7 +1275,7 @@ const YEARLY_STAGES = [
             ["selective-training-service-act"],
             [
                 { label: "I want to accept training as preparation", effect: { readiness: 8, hope: -2 }, consequence: "Preparedness rises, but anxiety does too.", factIds: ["selective-training-service-act"] },
-                { label: "I want to pretend war cannot affect us", effect: { readiness: -6, hope: 3 }, consequence: "Caution is understandable, but readiness falls.", factIds: ["isolationism-debate"] }
+                { label: "I worry a peacetime draft pulls families toward war", effect: { hope: 3, readiness: -4 }, consequence: "That fear was common, even as preparedness supporters gained ground.", factIds: ["selective-training-service-act", "isolationism-debate"] }
             ]
         )),
         yearEvent(9, "Arsenal of Democracy", "Defense industry expands before formal U.S. entry.", ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"], miniGame(
@@ -1287,7 +1286,7 @@ const YEARLY_STAGES = [
             ["arsenal-of-democracy"],
             [
                 { label: "I want to take the defense job", effect: { money: 10, food: 5, readiness: 7 }, consequence: "Defense production starts pulling people into paid work.", factIds: ["arsenal-of-democracy", "wartime-shipyard-factory-jobs"] },
-                { label: "I want to avoid war industries", effect: { hope: 4, money: -6, readiness: -5 }, consequence: "Avoiding war work means missing new jobs.", factIds: ["isolationism-debate"] }
+                { label: "I want to keep looking for nonwar work nearby", effect: { hope: 4, money: -4, readiness: -4 }, consequence: "Avoiding war work protects personal beliefs, while new defense wages grow elsewhere.", factIds: ["isolationism-debate", "wartime-shipyard-factory-jobs"] }
             ]
         ))
     ], [
@@ -1299,33 +1298,33 @@ const YEARLY_STAGES = [
             "mg-1941-lend-lease",
             "Mini-Game: Supply Route",
             "Allies need supplies before the U.S. formally enters the war.",
-            "Choose the policy that sends aid overseas.",
+            "Choose which risk the country should accept.",
             ["lend-lease"],
             [
-                { label: "I choose Lend-Lease", effect: { readiness: 10, hope: 3 }, consequence: "Correct: Lend-Lease expands aid to nations fighting the Axis.", factIds: ["lend-lease"] },
-                { label: "I choose Bank Holiday", effect: { hope: -3 }, consequence: "That was a 1933 banking response.", factIds: ["bank-holiday"] }
+                { label: "I support Lend-Lease aid to nations fighting the Axis", effect: { readiness: 10, hope: 3 }, consequence: "Aid expands U.S. support before formal entry into war.", factIds: ["lend-lease"] },
+                { label: "I worry Lend-Lease pulls the U.S. closer to war", effect: { hope: 4, readiness: -4 }, consequence: "That fear was common as aid blurred the line between neutrality and involvement.", factIds: ["lend-lease", "isolationism-debate"] }
             ]
         )),
         yearEvent(8, "Pearl Harbor", "Japan attacks Pearl Harbor on December 7, 1941.", ["pearl-harbor"], miniGame(
             "mg-1941-pearl-harbor",
             "Mini-Game: Radio Alert",
             "A radio alert interrupts the day: Pearl Harbor has been attacked.",
-            "Choose the accurate consequence.",
+            "Choose what your family focuses on first.",
             ["pearl-harbor"],
             [
-                { label: "I think the U.S. moves toward formal war", effect: { readiness: 12, hope: -4 }, consequence: "Pearl Harbor leads to U.S. entry into World War II.", factIds: ["pearl-harbor", "us-declares-war"] },
-                { label: "I think the story should end here", effect: { hope: -6 }, consequence: "The story continues into mobilization and wartime employment.", factIds: ["us-declares-war"] }
+                { label: "I want to prepare for formal war and mobilization", effect: { readiness: 12, hope: -4 }, consequence: "Pearl Harbor leads to U.S. entry into World War II.", factIds: ["pearl-harbor", "us-declares-war"] },
+                { label: "I want to steady the household before big decisions", effect: { hope: 4, readiness: -3 }, consequence: "Fear and grief are real, but national mobilization still accelerates.", factIds: ["pearl-harbor", "us-declares-war"] }
             ]
         )),
         yearEvent(11, "U.S. Declares War", "Congress declares war and mobilization accelerates.", ["us-declares-war"], miniGame(
             "mg-1941-war",
             "Mini-Game: Mobilization Begins",
             "War begins for the United States.",
-            "Choose what changes on the home front.",
+            "Choose how to respond to the home-front shift.",
             ["us-declares-war"],
             [
-                { label: "I think factories and military service expand", effect: { money: 6, readiness: 9, hope: -2 }, consequence: "Mobilization begins to transform work and production.", factIds: ["us-declares-war", "wartime-shipyard-factory-jobs"] },
-                { label: "I think nothing changes economically", effect: { money: -4, readiness: -4 }, consequence: "Wartime demand soon reshapes the economy.", factIds: ["unemployment-falls-mobilization"] }
+                { label: "I want to look for work tied to mobilization", effect: { money: 6, readiness: 9, hope: -2 }, consequence: "War work begins transforming production and employment.", factIds: ["us-declares-war", "wartime-shipyard-factory-jobs"] },
+                { label: "I want to protect family routines as long as possible", effect: { hope: 4, money: -3, readiness: -3 }, consequence: "Stability matters, but wartime demand soon reshapes the economy.", factIds: ["unemployment-falls-mobilization"] }
             ]
         ))
     ], [
@@ -1337,11 +1336,11 @@ const YEARLY_STAGES = [
             "mg-1942-wpb",
             "Mini-Game: Convert the Factory",
             "A factory must shift from consumer goods to military production.",
-            "Choose the wartime agency idea.",
+            "Choose what production priority makes sense.",
             ["war-production-board"],
             [
                 { label: "I want the factory to build war supplies", effect: { money: 8, readiness: 10 }, consequence: "The WPB directs industrial conversion.", factIds: ["war-production-board"] },
-                { label: "I want the factory to ignore defense contracts", effect: { money: -6, readiness: -7 }, consequence: "That misses wartime industrial mobilization.", factIds: ["war-production-board"] }
+                { label: "I want to keep some consumer goods in production", effect: { food: 3, readiness: -5 }, consequence: "Civilians still need goods, but wartime priorities dominate industry.", factIds: ["war-production-board", "rationing"] }
             ]
         )),
         yearEvent(7, "OPA and Rationing", "Price controls and rationing manage scarce goods.", ["office-price-administration", "rationing"], miniGame(
@@ -1352,18 +1351,18 @@ const YEARLY_STAGES = [
             ["office-price-administration", "rationing"],
             [
                 { label: "I want to follow ration rules", effect: { food: 7, readiness: 8 }, consequence: "Rationing stretches supplies for the war effort.", factIds: ["rationing", "office-price-administration"] },
-                { label: "I want to ignore rationing", effect: { food: 5, readiness: -8, hope: -5 }, consequence: "Short-term gain weakens shared sacrifice.", factIds: ["rationing"] }
+                { label: "I want to stretch supplies through local swaps", effect: { food: 5, readiness: -4, hope: -2 }, consequence: "Families improvise under pressure, but ration systems depend on shared rules.", factIds: ["rationing"] }
             ]
         )),
         yearEvent(11, "Japanese American Incarceration", "Japanese American incarceration is a grave civil liberties violation.", ["japanese-american-incarceration"], miniGame(
             "mg-1942-incarceration",
             "Mini-Game: Civil Liberties",
             "The government orders Japanese American incarceration.",
-            "Choose the historically responsible interpretation.",
+            "Choose how to respond to fear and civil liberties.",
             ["japanese-american-incarceration"],
             [
-                { label: "I think this is a civil liberties violation", effect: { hope: 4 }, consequence: "Correct: wartime fear produced a serious injustice.", factIds: ["japanese-american-incarceration"] },
-                { label: "I think this was harmless", effect: { hope: -10 }, consequence: "That erases the harm and injustice of incarceration.", factIds: ["japanese-american-incarceration"] }
+                { label: "I want to speak up for constitutional rights", effect: { hope: 4 }, consequence: "The policy was a serious civil liberties violation rooted in wartime fear.", factIds: ["japanese-american-incarceration"] },
+                { label: "I feel pressure to stay silent during wartime fear", effect: { hope: -5 }, consequence: "Silence may feel safer, but it leaves a grave injustice unchallenged.", factIds: ["japanese-american-incarceration"] }
             ]
         ))
     ], [
@@ -1375,22 +1374,22 @@ const YEARLY_STAGES = [
             "mg-1943-rosie",
             "Mini-Game: Labor Shift",
             "A factory needs more workers.",
-            "Choose the accurate home-front change.",
+            "Choose how your household handles the labor shift.",
             ["rosie-women-industry"],
             [
-                { label: "I think women take industrial jobs in large numbers", effect: { money: 8, hope: 7 }, consequence: "Rosie the Riveter symbolizes this shift.", factIds: ["rosie-women-industry"] },
-                { label: "I think factories close because no one works", effect: { money: -8, readiness: -6 }, consequence: "Wartime factories expanded rapidly.", factIds: ["wartime-shipyard-factory-jobs"] }
+                { label: "I want women in the family to take industrial work", effect: { money: 8, hope: 6 }, consequence: "Rosie the Riveter symbolizes women entering wartime industry.", factIds: ["rosie-women-industry"] },
+                { label: "I worry about childcare, wages, and community pressure", effect: { hope: 3, money: -3 }, consequence: "Barriers were real, even as wartime factories needed workers.", factIds: ["rosie-women-industry", "wartime-shipyard-factory-jobs"] }
             ]
         )),
         yearEvent(7, "African American Industrial Migration", "African Americans move to industrial jobs while facing discrimination.", ["african-american-industrial-migration"], miniGame(
             "mg-1943-migration",
             "Mini-Game: Industrial Migration",
             "A war-industry job opens in another city.",
-            "Choose a respectful, accurate interpretation.",
+            "Choose how to weigh opportunity and discrimination.",
             ["african-american-industrial-migration"],
             [
-                { label: "I think jobs expand, but discrimination remains", effect: { money: 7, hope: 3 }, consequence: "Opportunity and inequality both shape the experience.", factIds: ["african-american-industrial-migration"] },
-                { label: "I think everyone benefits equally", effect: { hope: -7 }, consequence: "That oversimplifies wartime inequality.", factIds: ["african-american-industrial-migration"] }
+                { label: "I want to move for the industrial job despite discrimination", effect: { money: 7, hope: 2 }, consequence: "War work opens opportunities, while discrimination remains a serious barrier.", factIds: ["african-american-industrial-migration"] },
+                { label: "I want to stay near community support for now", effect: { hope: 5, money: -3 }, consequence: "Staying can protect support networks, but industrial wages may be elsewhere.", factIds: ["african-american-industrial-migration"] }
             ]
         )),
         yearEvent(11, "War Bonds", "Families buy war bonds to help finance the war.", ["war-bonds"], miniGame(
@@ -1413,11 +1412,11 @@ const YEARLY_STAGES = [
             "mg-1944-jobs",
             "Mini-Game: Why Jobs Rise",
             "Unemployment falls during the war.",
-            "Choose the main reason.",
+            "Choose which explanation you emphasize.",
             ["unemployment-falls-mobilization"],
             [
-                { label: "I think military service and war production expand", effect: { money: 10, food: 5, hope: 6 }, consequence: "Wartime demand helps end Depression-era unemployment.", factIds: ["unemployment-falls-mobilization", "wartime-shipyard-factory-jobs"] },
-                { label: "I think the New Deal alone instantly ended it", effect: { hope: -7 }, consequence: "New Deal relief mattered, but mobilization was decisive.", factIds: ["new-deal-opposition", "unemployment-falls-mobilization"] }
+                { label: "I think war production and military service are decisive", effect: { money: 10, food: 5, hope: 6 }, consequence: "Wartime demand helps end Depression-era unemployment.", factIds: ["unemployment-falls-mobilization", "wartime-shipyard-factory-jobs"] },
+                { label: "I think New Deal relief still matters in the transition", effect: { food: 5, hope: 5 }, consequence: "New Deal support mattered, but wartime mobilization drives the job surge.", factIds: ["new-deal-opposition", "unemployment-falls-mobilization"] }
             ]
         )),
         yearEvent(10, "Housing and Family Strain", "War work brings jobs but also long hours, housing shortages, and family separation.", ["wartime-shipyard-factory-jobs"], miniGame(
@@ -1440,22 +1439,22 @@ const YEARLY_STAGES = [
             "mg-1945-war-ends",
             "Mini-Game: Historical Reflection",
             "The war ends and the economy has changed.",
-            "Choose the best APUSH takeaway.",
+            "Choose which legacy stands out most.",
             ["wwii-ends-1945"],
             [
-                { label: "I think wartime mobilization transformed the economy", effect: { hope: 10 }, consequence: "Correct: production, federal spending, and military service changed the economy.", factIds: ["wwii-ends-1945", "unemployment-falls-mobilization"] },
-                { label: "I think the Depression ended instantly in 1933", effect: { hope: -8 }, consequence: "The New Deal helped, but mass unemployment persisted until wartime mobilization.", factIds: ["first-hundred-days", "unemployment-falls-mobilization"] }
+                { label: "I think wartime mobilization transformed the economy", effect: { hope: 10 }, consequence: "Production, federal spending, and military service changed the economy.", factIds: ["wwii-ends-1945", "unemployment-falls-mobilization"] },
+                { label: "I think New Deal reforms changed government expectations", effect: { hope: 8 }, consequence: "That legacy mattered too, even though wartime demand ended mass unemployment.", factIds: ["first-hundred-days", "social-security-act", "unemployment-falls-mobilization"] }
             ]
         )),
         yearEvent(10, "Reflection", "The U.S. emerges economically powerful, but sacrifices and inequalities remain.", ["wwii-ends-1945", "unemployment-falls-mobilization"], miniGame(
             "mg-1945-reflect",
             "Mini-Game: Final Balance",
             "How should the period be remembered?",
-            "Choose the most complete interpretation.",
+            "Choose which truth you want the ending to emphasize.",
             ["wwii-ends-1945"],
             [
                 { label: "I think relief, reform, mobilization, and sacrifice all mattered", effect: { hope: 8 }, consequence: "That balanced interpretation fits the full journey.", factIds: ["wwii-ends-1945"] },
-                { label: "I think only one simple cause mattered", effect: { hope: -6 }, consequence: "The era had many connected causes and consequences.", factIds: ["wwii-ends-1945"] }
+                { label: "I think opportunity grew while inequality and loss remained", effect: { hope: 7 }, consequence: "That emphasis captures the gains and costs of the era.", factIds: ["wwii-ends-1945", "african-american-industrial-migration", "japanese-american-incarceration"] }
             ]
         ))
     ], [
