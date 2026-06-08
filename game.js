@@ -192,6 +192,12 @@ function clamp(value, min = 0, max = 100){
     return Math.max(min, Math.min(max, value));
 }
 
+const RESOURCE_MAX = 88;
+const READINESS_MAX = 100;
+const POSITIVE_RESOURCE_SCALE = 0.55;
+const NEGATIVE_RESOURCE_SCALE = 1.45;
+const POSITIVE_READINESS_SCALE = 0.75;
+
 const RESOURCE_LABELS = {
     money: "Money",
     food: "Food",
@@ -454,9 +460,9 @@ const FACTS_BY_ID = Object.fromEntries(FACTS.map((fact)=> [fact.id, fact]));
 // APUSH timeline system: all stages, facts, choices, news, obstacles, and rewards live here.
 const APUSH_CONTENT = {
     startingResources: {
-        money: 50,
-        food: 50,
-        hope: 60,
+        money: 44,
+        food: 46,
+        hope: 52,
         readiness: 0
     },
     stages: [
@@ -1845,8 +1851,59 @@ function addMysteryCollectibles(stages){
     }
 }
 
+function rebalanceEffectForDifficulty(effect = {}){
+    const tuned = {};
+    for(let [key, value] of Object.entries(effect)){
+        if(!value){
+            tuned[key] = value;
+            continue;
+        }
+        const scale = value > 0
+            ? (key == "readiness" ? POSITIVE_READINESS_SCALE : POSITIVE_RESOURCE_SCALE)
+            : NEGATIVE_RESOURCE_SCALE;
+        const tunedValue = value > 0
+            ? Math.max(1, Math.round(value * scale))
+            : Math.min(-1, Math.round(value * scale));
+        tuned[key] = tunedValue;
+    }
+    return tuned;
+}
+
+function tuneEffectSet(items = []){
+    for(let item of items){
+        if(item.effect) item.effect = rebalanceEffectForDifficulty(item.effect);
+    }
+}
+
+function rebalanceContentForDifficulty(stages){
+    for(let stage of stages){
+        tuneEffectSet(stage.obstacles);
+        tuneEffectSet(stage.collectibles);
+        for(let event of stage.events || []){
+            if(!event.miniGame) continue;
+            tuneEffectSet(event.miniGame.options);
+        }
+    }
+    for(let miniGame of Object.values(SPECIAL_MINIGAMES)){
+        tuneEffectSet(miniGame.outcomes);
+        tuneEffectSet(miniGame.options);
+    }
+}
+
+function pressureForStage(stage){
+    if(!stage) return {};
+    if(stage.startYear <= 1932) return { money: -0.12, food: -0.12, hope: -0.08 };
+    if(stage.startYear == 1933) return { money: -0.08, food: -0.07, hope: -0.05 };
+    if(stage.visual == "dry-farm") return { money: -0.09, food: -0.13, hope: -0.08 };
+    if(stage.startYear <= 1938) return { money: -0.07, food: -0.06, hope: -0.06 };
+    if(stage.startYear <= 1941) return { money: -0.05, food: -0.04, hope: -0.09 };
+    if(stage.visual == "wartime") return { money: -0.03, food: -0.08, hope: -0.08 };
+    return { money: -0.02, food: -0.03, hope: -0.04 };
+}
+
 enrichChoiceContent(YEARLY_STAGES);
 addMysteryCollectibles(YEARLY_STAGES);
+rebalanceContentForDifficulty(YEARLY_STAGES);
 
 APUSH_CONTENT.stages = YEARLY_STAGES;
 APUSH_CONTENT.choices = YEARLY_STAGES.flatMap((stage)=> stage.events.map((event)=> event.miniGame).filter(Boolean));
@@ -2059,12 +2116,14 @@ class Game {
         this.player.update(this, frametime, keys);
         this.updateActors(frametime);
         this.spawnActors(frametime);
+        this.applyEraPressure(frametime);
 
         const timelineFrame = frametime * TIMELINE_MULTIPLIER;
         this.elapsed += timelineFrame;
         this.stageTime += timelineFrame;
         this.checkTimelineEvents();
         this.advanceStageIfNeeded();
+        this.checkHardship();
         this.display.sync(this);
     }
 
@@ -2107,20 +2166,34 @@ class Game {
         this.spawnTimer -= frametime;
         if(this.spawnTimer > 0 || !this.stage) return;
         const stage = this.stage;
-        const source = stage.collectibles;
+        const useObstacle = (stage.obstacles || []).length > 0 && Math.random() < 0.58;
+        const source = useObstacle ? stage.obstacles : stage.collectibles;
         if(!source.length) return;
         const data = source[Math.floor(Math.random() * source.length)];
-        const actorKind = "collectible";
+        const actorKind = useObstacle ? "obstacle" : "collectible";
         const iconOnly = actorKind == "collectible" && ICON_ONLY_COLLECTIBLES[data.label];
-        const actorSize = actorKind == "collectible"
-            ? (iconOnly ? new Vector(4.2, 4.2) : new Vector(8.4, 3.8))
-            : new Vector(8.8, 4.6);
-        const y = actorKind == "collectible"
-            ? randomrange(Math.floor(this.height - GroundLevel - 12), Math.floor(this.height - GroundLevel - 8))
-            : this.height - GroundLevel - actorSize.y;
-        const speed = -7.8;
-        this.actors.push(new HistoricalActor(actorKind, data, new Vector(this.width + 4, y), actorSize, speed));
-        this.spawnTimer = randomrange(42, 68) / 10;
+        let actorSize;
+        let y;
+        let actorData = data;
+        if(actorKind == "obstacle"){
+            const lane = Math.random() < 0.42 ? "slide" : "jump";
+            actorSize = lane == "slide" ? new Vector(9.4, 3.2) : new Vector(7.8, 4.4);
+            y = lane == "slide"
+                ? this.height - GroundLevel - actorSize.y - 2.65
+                : this.height - GroundLevel - actorSize.y;
+            actorData = {
+                ...data,
+                lane,
+                actionHint: lane == "slide" ? "SLIDE" : "JUMP"
+            };
+        }
+        else{
+            actorSize = iconOnly ? new Vector(4.2, 4.2) : new Vector(8.4, 3.8);
+            y = randomrange(Math.floor(this.height - GroundLevel - 12), Math.floor(this.height - GroundLevel - 8));
+        }
+        const speed = actorKind == "obstacle" ? -8.8 : -7.8;
+        this.actors.push(new HistoricalActor(actorKind, actorData, new Vector(this.width + 4, y), actorSize, speed));
+        this.spawnTimer = randomrange(30, 52) / 10;
     }
 
     spawnEventBox(event){
@@ -2224,10 +2297,20 @@ class Game {
         this.checkHardship();
     }
 
+    applyEraPressure(frametime){
+        const pressure = pressureForStage(this.stage);
+        for(let key of VISIBLE_RESOURCE_ORDER){
+            if(pressure[key]){
+                this.resources[key] = clamp(this.resources[key] + pressure[key] * frametime, 0, RESOURCE_MAX);
+            }
+        }
+    }
+
     applyResourceEffect(effect = {}){
         for(let key of RESOURCE_ORDER){
             if(effect[key]){
-                this.resources[key] = clamp(this.resources[key] + effect[key]);
+                const max = key == "readiness" ? READINESS_MAX : RESOURCE_MAX;
+                this.resources[key] = clamp(this.resources[key] + effect[key], 0, max);
             }
         }
     }

@@ -547,13 +547,20 @@
         }
 
         .actor.obstacle::before {
-            content: "";
+            content: attr(data-action-hint);
             position: absolute;
-            top: -7px;
-            width: 38%;
-            height: 8px;
+            top: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 34px;
+            height: 12px;
+            padding: 1px 5px;
+            color: #f4eedf;
             background: var(--warning);
-            border-radius: 4px 4px 0 0;
+            border-radius: 0 0 4px 4px;
+            font-size: 7px;
+            line-height: 10px;
+            letter-spacing: 0.5px;
         }
 
         .actor.collectible {
