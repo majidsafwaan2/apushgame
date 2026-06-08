@@ -659,6 +659,22 @@
             transform: rotate(20deg);
         }
 
+        .icon-mystery::before {
+            content: "?";
+            position: absolute;
+            inset: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f4eedf;
+            background: #7b3d35;
+            border: 3px solid #d1ac45;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: 900;
+            box-shadow: inset 0 -4px rgba(0, 0, 0, 0.16);
+        }
+
         .narrative-toast,
         .resource-note {
             position: absolute;
@@ -728,7 +744,7 @@
         }
 
         .news-messenger::before {
-            content: "NEWS";
+            content: "ALERT";
             display: inline-block;
             margin-right: 8px;
             color: #f0d47d;
@@ -737,6 +753,52 @@
         .news-messenger.show {
             opacity: 1;
             animation: newsFly 8s linear forwards;
+        }
+
+        .source-popup {
+            position: absolute;
+            left: 12px;
+            bottom: 58px;
+            z-index: 48;
+            width: min(350px, calc(100% - 24px));
+            padding: 10px 12px;
+            color: var(--ink);
+            background: rgba(244, 238, 223, 0.96);
+            border: 2px solid rgba(23, 43, 68, 0.76);
+            border-left: 6px solid #7b3d35;
+            border-radius: 7px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            pointer-events: none;
+        }
+
+        .source-popup.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .source-popup p {
+            margin: 4px 0;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .source-popup .source-kicker {
+            color: #7b3d35;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .source-popup a {
+            display: inline-block;
+            margin-top: 4px;
+            color: #172b44;
+            font-size: 12px;
+            font-weight: 900;
         }
 
         .help-button {
@@ -804,7 +866,7 @@
         }
 
         .screen-card {
-            width: min(680px, 100%);
+            width: min(720px, 100%);
             max-height: 94%;
             overflow: auto;
             padding: 22px;
@@ -896,6 +958,33 @@
             font-weight: 700;
         }
 
+        .choice-card,
+        .mini-card {
+            width: min(790px, 100%);
+        }
+
+        .choice-scroll-cue {
+            display: inline-block;
+            margin: 0 0 8px;
+            padding: 5px 8px;
+            color: #7b3d35;
+            background: rgba(209, 172, 69, 0.22);
+            border: 1px solid rgba(123, 61, 53, 0.28);
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .choice-context {
+            margin: 8px 0 10px;
+            padding: 10px 12px;
+            color: #2d333a;
+            background: rgba(222, 208, 173, 0.48);
+            border-left: 5px solid #d1ac45;
+            border-radius: 5px;
+        }
+
         .choice-visual {
             position: relative;
             height: 190px;
@@ -937,6 +1026,82 @@
             font-size: 11px;
             font-weight: 900;
             text-transform: uppercase;
+        }
+
+        .mini-options {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .mini-option {
+            min-height: 90px;
+            padding: 12px;
+            color: var(--ink);
+            background: #efe3bf;
+            border: 2px solid #5d4b31;
+            border-radius: 6px;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 800;
+            text-align: left;
+        }
+
+        .mini-option span {
+            display: block;
+            margin-top: 8px;
+            color: #7b3d35;
+            font-size: 12px;
+        }
+
+        .program-wheel {
+            position: relative;
+            width: 172px;
+            height: 172px;
+            margin: 14px auto 8px;
+            border: 8px solid #172b44;
+            border-radius: 50%;
+            background:
+                conic-gradient(
+                    #d1ac45 0deg 51deg,
+                    #7b3d35 51deg 102deg,
+                    #58715d 102deg 154deg,
+                    #6b86a7 154deg 206deg,
+                    #a66b3c 206deg 257deg,
+                    #ded0ad 257deg 309deg,
+                    #9a3d36 309deg 360deg
+                );
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+            animation: wheelIdle 3.8s linear infinite;
+        }
+
+        .program-wheel::after {
+            content: "";
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 22px solid #172b44;
+        }
+
+        .program-wheel span {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 58px;
+            margin-left: -29px;
+            margin-top: -8px;
+            color: #172b44;
+            font-size: 9px;
+            font-weight: 900;
+            text-align: center;
+            transform: rotate(calc((360deg / var(--n)) * var(--i))) translateY(-59px) rotate(calc((-360deg / var(--n)) * var(--i)));
+            text-shadow: 0 1px rgba(244, 238, 223, 0.65);
         }
 
         .choice-button {
@@ -1032,9 +1197,16 @@
             }
         }
 
+        @keyframes wheelIdle {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         @media (max-width: 760px) {
             .summary-meters,
-            .choice-actions {
+            .choice-actions,
+            .mini-options {
                 grid-template-columns: 1fr;
             }
 

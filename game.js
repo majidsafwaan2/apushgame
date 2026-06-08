@@ -140,6 +140,14 @@ function makeelment(tag, attrs, childeren = []){
     return element;
 }
 
+function escapeHtml(value = ""){
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+}
+
 function trackkey(){
     const keys = {
         arrowup: false,
@@ -197,7 +205,9 @@ const ICON_ONLY_COLLECTIBLES = {
     Bread: "bread",
     "Soup Bowl": "soup",
     Coins: "coins",
-    "Water Can": "water"
+    "Water Can": "water",
+    "New Deal Wheel": "mystery",
+    "Production Crate": "mystery"
 };
 
 const HISTORICAL_IMAGES = {
@@ -277,6 +287,119 @@ function formatEffect(effect){
         .map((key)=> `${effect[key] > 0 ? "+" : ""}${effect[key]} ${RESOURCE_LABELS[key]}`)
         .join(", ");
 }
+
+const SOURCE_POPUPS = {
+    breadlines: {
+        title: "Breadlines and Relief",
+        source: "National Archives: Great Depression and New Deal photographs",
+        excerpt: "APUSH lens: breadlines show how hunger and unemployment overwhelmed local charity before federal relief expanded.",
+        link: "https://www.archives.gov/research/still-pictures/new-deal"
+    },
+    crash: {
+        title: "Primary Source: Crash-Era Headlines",
+        source: "Library of Congress classroom timeline",
+        excerpt: "APUSH lens: newspapers help connect the stock crash to bank failures, falling demand, and job losses.",
+        link: "https://www.loc.gov/classroom-materials/united-states-history-primary-source-timeline/great-depression-and-world-war-ii-1929-1945/"
+    },
+    banking: {
+        title: "Bank Holiday and FDIC",
+        source: "FDIC history timeline, 1930-1939",
+        excerpt: "APUSH lens: the Emergency Banking Act, bank inspections, and FDIC insurance tried to stop panic after bank failures.",
+        link: "https://www.fdic.gov/history/1930-1939"
+    },
+    newDeal: {
+        title: "New Deal Work Programs",
+        source: "National Archives: New Deal resources",
+        excerpt: "APUSH lens: CCC, CWA, PWA, WPA, and TVA show relief and recovery through federal jobs and public works.",
+        link: "https://www.archives.gov/research/alic/reference/new-deal.html"
+    },
+    dustBowl: {
+        title: "Dust Bowl and Migration",
+        source: "Library of Congress Dust Bowl timeline",
+        excerpt: "Steinbeck's phrase “dusted out, tractored out” captured migration pressure from drought, debt, and mechanization.",
+        link: "https://www.loc.gov/classroom-materials/united-states-history-primary-source-timeline/great-depression-and-world-war-ii-1929-1945/dust-bowl/"
+    },
+    pearlHarbor: {
+        title: "Pearl Harbor Dispatches",
+        source: "Library of Congress Pearl Harbor primary source",
+        excerpt: "APUSH lens: Pearl Harbor changed public debate from neutrality to formal war and total mobilization.",
+        link: "https://www.loc.gov/item/mcc.002/"
+    },
+    homeFront: {
+        title: "Rationing and the Home Front",
+        source: "National Archives: America on the Homefront",
+        excerpt: "APUSH lens: OPA rationing and price controls connected household choices to wartime production and inflation control.",
+        link: "https://www.archives.gov/boston/exhibits/homefront"
+    },
+    rosie: {
+        title: "Women in Wartime Industry",
+        source: "Library of Congress: We Can Do It poster",
+        excerpt: "APUSH lens: Rosie symbolism points to women entering industrial jobs while wartime gains remained unequal and contested.",
+        link: "https://www.loc.gov/resource/gdcwdl.wdl_02733/"
+    },
+    incarceration: {
+        title: "Civil Liberties in Wartime",
+        source: "National Archives: Japanese American incarceration",
+        excerpt: "APUSH lens: Executive Order 9066 and incarceration show how wartime fear produced a major civil liberties violation.",
+        link: "https://www.archives.gov/education/lessons/japanese-relocation/"
+    },
+    warEnds: {
+        title: "War Ends, Economy Transformed",
+        source: "Library of Congress World War II headline",
+        excerpt: "APUSH lens: wartime federal spending, production, and military service helped end Depression-era mass unemployment.",
+        link: "https://newsroom.loc.gov/world-war-ii-headline/a/7eecbb0e-e9da-4092-9b19-18d6b7b86fe6"
+    }
+};
+
+function sourcePopupFor(data = {}){
+    const text = `${data.label || ""} ${(data.factIds || []).join(" ")}`;
+    if(/bread|soup|relief|unemployment-rises|breadlines/i.test(text)) return SOURCE_POPUPS.breadlines;
+    if(/newspaper|stock-crash|buying-on-margin/i.test(text)) return SOURCE_POPUPS.crash;
+    if(/fdic|bank|deposit|holiday/i.test(text)) return SOURCE_POPUPS.banking;
+    if(/ccc|cwa|pwa|wpa|tva|social-security|wagner|work crew|job card|paycheck/i.test(text)) return SOURCE_POPUPS.newDeal;
+    if(/water|map west|work flyer|migration|dry-dust|farm/i.test(text)) return SOURCE_POPUPS.dustBowl;
+    if(/radio|pearl|lend-lease|congress|declares-war/i.test(text)) return SOURCE_POPUPS.pearlHarbor;
+    if(/ration|wpb|opa|war bond|shipyard|factory paycheck|war job/i.test(text)) return SOURCE_POPUPS.homeFront;
+    if(/rosie|women/i.test(text)) return SOURCE_POPUPS.rosie;
+    if(/incarceration|civil liberties/i.test(text)) return SOURCE_POPUPS.incarceration;
+    if(/war ends|homecoming|wwii-ends/i.test(text)) return SOURCE_POPUPS.warEnds;
+    return null;
+}
+
+const SPECIAL_MINIGAMES = {
+    "new-deal-wheel": {
+        id: "new-deal-wheel",
+        type: "wheel",
+        title: "New Deal Program Wheel",
+        kicker: "Mystery Box",
+        prompt: "Spin for a New Deal program.",
+        context: "The New Deal was not one single policy. It included relief programs for immediate hardship, recovery programs for jobs and production, and reform programs meant to prevent future collapse. Spin the wheel to see which program your family encounters and how it changes your resources.",
+        factIds: ["ccc", "cwa", "pwa", "wpa", "tva", "fdic", "social-security-act"],
+        outcomes: [
+            { label: "CCC", effect: { money: 7, hope: 8 }, explanation: "The Civilian Conservation Corps gave young men conservation jobs and sent wages home to families.", factIds: ["ccc"] },
+            { label: "CWA", effect: { money: 6, food: 5 }, explanation: "The Civil Works Administration offered short-term emergency work during the worst unemployment crisis.", factIds: ["cwa"] },
+            { label: "PWA", effect: { money: 7, hope: 5 }, explanation: "The Public Works Administration funded large construction projects and tried to stimulate recovery.", factIds: ["pwa"] },
+            { label: "WPA", effect: { money: 9, food: 6, hope: 7 }, explanation: "The Works Progress Administration created public jobs building roads, schools, parks, and civic buildings.", factIds: ["wpa"] },
+            { label: "TVA", effect: { hope: 10, money: 4 }, explanation: "The Tennessee Valley Authority brought jobs, electricity, and flood-control projects to parts of the South.", factIds: ["tva"] },
+            { label: "FDIC", effect: { hope: 9 }, explanation: "The FDIC helped protect deposits and rebuilt public faith in banks after failures.", factIds: ["fdic"] },
+            { label: "Social Security", effect: { hope: 9 }, explanation: "The Social Security Act created a long-term federal safety net for older Americans.", factIds: ["social-security-act"] }
+        ]
+    },
+    "production-crate": {
+        id: "production-crate",
+        type: "sort",
+        title: "War Production Crate",
+        kicker: "Mystery Box",
+        prompt: "Sort the crate for the home front.",
+        context: "By 1942, wartime mobilization redirected factories, workers, and household consumption. The War Production Board pushed industrial conversion while the Office of Price Administration managed rationing and prices. Pick the crate that best supports mobilization without pretending wartime sacrifice was easy.",
+        factIds: ["war-production-board", "office-price-administration", "rationing"],
+        options: [
+            { label: "WPB contract", effect: { money: 8, readiness: 8 }, explanation: "The War Production Board directed factories toward planes, ships, tanks, and weapons. That production created jobs and strengthened mobilization.", factIds: ["war-production-board", "wartime-shipyard-factory-jobs"] },
+            { label: "OPA ration book", effect: { food: 7, readiness: 5 }, explanation: "The Office of Price Administration used rationing and price controls to manage scarcity. Families sacrificed some choice so supplies could support the war effort.", factIds: ["office-price-administration", "rationing"] },
+            { label: "Extra consumer goods", effect: { food: 3, hope: 3, readiness: -4 }, explanation: "Consumer goods helped families feel normal, but wartime factories prioritized military production. This choice shows the tension between home comfort and total war.", factIds: ["war-production-board", "rationing"] }
+        ]
+    }
+};
 
 const FACTS = [
     { id: "stock-crash-1929", year: "1929", label: "1929 Stock Market Crash" },
@@ -727,7 +850,7 @@ const APUSH_CONTENT = {
             factIds: ["emergency-banking-act", "fdic"],
             options: [
                 { label: "I want to trust the reopened banks", effect: { hope: 10, money: 5 }, consequence: "Bank reform and deposit insurance strengthen confidence.", factIds: ["bank-holiday", "fdic"] },
-                { label: "I want to keep some cash close until trust returns", effect: { money: 4, hope: -3 }, consequence: "Cash feels safer after failures, but confidence recovers more slowly.", factIds: ["bank-failures"] }
+                { label: "I want to keep some cash close while banks are being tested", effect: { money: 4, hope: -3 }, consequence: "Cash feels practical after bank failures, but many families remain cautious about banks.", factIds: ["bank-failures"] }
             ]
         },
         {
@@ -937,14 +1060,16 @@ function annualStage(year, label, visual, props, events, collectibles = []){
             factIds: event.factIds
         })),
         news: events
-            .filter((event)=> event.label.includes("Pearl Harbor") || event.label.includes("Poland") || event.label.includes("War Ends"))
+            .filter((event)=> event.label.includes("FDR Elected") || event.label.includes("Poland") || event.label.includes("Pearl Harbor") || event.label.includes("War Ends"))
             .map((event)=> ({
                 time: event.time,
-                text: event.label.includes("Pearl Harbor")
-                    ? "Radio Alert: Japan attacks Pearl Harbor."
-                    : event.label.includes("Poland")
-                        ? "News from Europe: Nazi Germany invades Poland."
-                        : "Headline: World War II ends in 1945.",
+                text: event.label.includes("FDR Elected")
+                    ? "Emergency Announcement: Franklin D. Roosevelt wins the 1932 election."
+                    : event.label.includes("Pearl Harbor")
+                        ? "Emergency Announcement: Japan attacks Pearl Harbor."
+                        : event.label.includes("Poland")
+                            ? "Emergency Announcement: Nazi Germany invades Poland."
+                            : "Emergency Announcement: World War II ends in 1945.",
                 factIds: event.factIds
             })),
         choices: [],
@@ -1074,8 +1199,8 @@ const YEARLY_STAGES = [
             "Choose a response to banking reform.",
             ["bank-holiday", "emergency-banking-act"],
             [
-                { label: "I want to use the reopened inspected banks", effect: { hope: 9, money: 4 }, consequence: "Banking reform helps confidence return.", factIds: ["emergency-banking-act", "bank-holiday"] },
-                { label: "I want to keep some cash close until trust returns", effect: { money: 3, hope: -2 }, consequence: "Caution feels safer after failures, though confidence rebuilds more slowly.", factIds: ["bank-failures", "bank-holiday"] }
+                { label: "I want to use the reopened inspected banks", effect: { hope: 9, money: 4 }, consequence: "Banking reform helps rebuild public faith in banks.", factIds: ["emergency-banking-act", "bank-holiday"] },
+                { label: "I want to keep some cash close while banks are being tested", effect: { money: 3, hope: -2 }, consequence: "Caution feels practical after failures, though many families remain wary of banks.", factIds: ["bank-failures", "bank-holiday"] }
             ]
         )),
         yearEvent(7, "Fireside Chats and FDIC", "Radio messages explain reform and FDIC protects deposits.", ["fireside-chats", "fdic"], miniGame(
@@ -1086,7 +1211,7 @@ const YEARLY_STAGES = [
             ["fdic"],
             [
                 { label: "I want to deposit a little after hearing about the FDIC", effect: { hope: 8, money: 2 }, consequence: "Deposit insurance helps restore trust without erasing every fear.", factIds: ["fdic", "fireside-chats"] },
-                { label: "I want to wait and see whether neighbors trust it", effect: { money: 2, hope: -2 }, consequence: "Caution is understandable after failures, but recovery depends on confidence.", factIds: ["fdic", "bank-failures"] }
+                { label: "I want to wait and see what neighbors do", effect: { money: 2, hope: -2 }, consequence: "Caution is understandable after failures, but inspected banks need depositors to use them again.", factIds: ["fdic", "bank-failures"] }
             ]
         )),
         yearEvent(11, "CCC, PWA, TVA, AAA", "The New Deal experiments with jobs, public works, power, and farm policy.", ["ccc", "pwa", "tva", "aaa", "first-hundred-days"], miniGame(
@@ -1400,7 +1525,7 @@ const YEARLY_STAGES = [
             ["war-bonds"],
             [
                 { label: "I want to buy a war bond", effect: { money: -6, readiness: 10, hope: 5 }, consequence: "War bonds help finance federal wartime spending.", factIds: ["war-bonds"] },
-                { label: "I want to save every dollar", effect: { money: 6, readiness: -5 }, consequence: "Cash is safer now, but war financing support falls.", factIds: ["war-bonds"] }
+                { label: "I want to save every dollar", effect: { money: 6, readiness: -5 }, consequence: "Keeping cash close protects the household budget, but war financing support falls.", factIds: ["war-bonds"] }
             ]
         ))
     ], [
@@ -1462,6 +1587,266 @@ const YEARLY_STAGES = [
         { label: "Homecoming", effect: { hope: 8 }, factIds: ["wwii-ends-1945"] }
     ])
 ];
+
+const CHOICE_COPY = {
+    "mg-1929-crash": {
+        prompt: "Stock Market Crash: Sell Shares or Hold On?",
+        context: "It is 1929, and falling stock prices are shaking banks, businesses, and household savings. Many investors had bought on margin, so borrowed money made losses worse. Your family is trying to protect food and cash while no one knows how far the panic will spread."
+    },
+    "mg-1929-margin": {
+        prompt: "Buying on Margin: Borrow More or Cut Risk?",
+        context: "Buying on margin means purchasing stock with borrowed money. During a rising market it can make gains look larger, but during a crash it makes losses hit faster. This choice asks whether hope for a rebound is worth carrying more debt."
+    },
+    "mg-1930-bank": {
+        prompt: "Bank Failures: Keep Cash or Trust the Bank?",
+        context: "In the early Depression, many banks failed because depositors rushed to withdraw money and banks had made risky loans. Before federal deposit insurance, a failed bank could wipe out a family's savings. Your choice reflects the tension between personal caution and public faith in banks."
+    },
+    "mg-1930-breadline": {
+        prompt: "Breadline Relief: Accept Help or Try Neighbors First?",
+        context: "Breadlines became visible signs of hunger during the Depression. Private charities, churches, and neighbors helped many people, but they could not meet the scale of national unemployment. Families often balanced pride, survival, and community support."
+    },
+    "mg-1931-work": {
+        prompt: "Job Search: Keep Looking or Conserve Energy?",
+        context: "By 1931, unemployment had become a daily reality for millions of workers. Factory shutdowns and falling demand meant that searching harder did not always produce a job. This choice is about how a family spends food, time, and hope when work is scarce."
+    },
+    "mg-1931-hooverville": {
+        prompt: "Rent Is Due: Family Shelter or Savings?",
+        context: "Hoovervilles were temporary communities built by people who had lost homes or steady income. They reflected both the depth of hardship and the weakness of relief systems before the New Deal. Your family must decide whether to preserve shelter, savings, or family support."
+    },
+    "mg-1932-election": {
+        prompt: "1932 Election: FDR Promises Relief, Recovery, and Reform",
+        context: "Franklin D. Roosevelt campaigned during a crisis that private charity and local governments could not contain. His promise of a New Deal suggested a larger federal role in the economy. Voters still disagreed over whether Washington or local/private action should lead recovery."
+    },
+    "mg-1932-relief": {
+        prompt: "Emergency Relief: Ask for Aid or Keep Searching?",
+        context: "By 1932, many families needed food before steady work returned. Relief could carry stigma, and public aid was often limited before the New Deal expanded federal action. This choice shows that survival strategies were practical, emotional, and political at the same time."
+    },
+    "mg-1933-bank-holiday": {
+        prompt: "Bank Holiday: Use Reopened Banks or Hold Cash?",
+        context: "In March 1933, Roosevelt temporarily closed banks so officials could inspect them. The Emergency Banking Act aimed to reopen sound banks and stop panic withdrawals. Families had to decide how much faith to place in a system that had recently failed many depositors."
+    },
+    "mg-1933-fdic": {
+        prompt: "Fireside Chat and FDIC: Deposit a Little or Wait?",
+        context: "FDR used Fireside Chats to explain federal action directly over the radio. The FDIC helped protect bank deposits and made ordinary savers more willing to use banks again. This was reform, not instant prosperity, but it changed expectations of federal responsibility."
+    },
+    "mg-1933-programs": {
+        prompt: "First New Deal Jobs: Leave for CCC Work or Stay Local?",
+        context: "New Deal agencies experimented with work relief, public construction, conservation, and regional planning. The CCC offered jobs that could help families, but often required separation from home. The choice has no perfect answer because wages, dignity, and family ties all matter."
+    },
+    "mg-1934-cwa": {
+        prompt: "CWA Paycheck: Food Now or Debt Pressure?",
+        context: "The Civil Works Administration created short-term emergency jobs in the winter of 1933-1934. A paycheck could buy food, pay debt, or keep a household going a little longer. Short-term relief helped, but it did not mean the Depression was over."
+    },
+    "mg-1934-farm": {
+        prompt: "Farm Debt: Federal Aid or Local Independence?",
+        context: "Farm families faced drought, falling prices, debt, and foreclosure in the 1930s. The Agricultural Adjustment Act tried to raise prices, but its effects were uneven and sometimes controversial. Families had to weigh independence against the risk of losing land."
+    },
+    "mg-1935-wpa": {
+        prompt: "WPA Job Offer: Public Work or Private Search?",
+        context: "The Works Progress Administration created jobs building roads, schools, parks, and public buildings. Critics worried about federal spending and dependence, while supporters saw wages and useful community projects. This choice asks how to balance work relief with the desire for private employment."
+    },
+    "mg-1935-social-security": {
+        prompt: "Social Security Act: Safety Net or Immediate Cost?",
+        context: "The Social Security Act created a federal old-age safety net and changed expectations of government. Payroll taxes raised concerns because many workers were already under pressure. The policy shows how New Deal reform could help long-term security while creating short-term debate."
+    },
+    "mg-1935-wagner": {
+        prompt: "Wagner Act: Organize Workers or Avoid Job Risk?",
+        context: "The Wagner Act protected workers' rights to organize and bargain collectively. Workers hoped unions could improve wages and conditions, but organizing could also create tension with employers. The choice reflects why labor rights were both empowering and risky."
+    },
+    "mg-1936-migration": {
+        prompt: "Migration West: Leave the Farm or Try Again?",
+        context: "Dry conditions, debt, and mechanization pushed many Great Plains families onto the road. Going west could mean hope for farm labor, but also travel costs, low wages, and crowded camps. Staying protected home ties but left families exposed to another failed crop."
+    },
+    "mg-1936-foreclosure": {
+        prompt: "Farm Auction: Mutual Aid or Save Your Own Cash?",
+        context: "Farm foreclosures and auctions became painful symbols of rural Depression hardship. Neighbors sometimes tried to help each other keep land or tools, but every family was under pressure. This choice shows the strain between community solidarity and household survival."
+    },
+    "mg-1937-court": {
+        prompt: "Court-Packing Debate: Protect New Deal Laws or Guard the Courts?",
+        context: "After the Supreme Court challenged some New Deal measures, FDR proposed adding justices. Supporters wanted to protect reform programs during an emergency. Critics warned that changing the Court could weaken checks and balances."
+    },
+    "mg-1937-opposition": {
+        prompt: "New Deal Opposition: Necessary Relief or Too Much Federal Power?",
+        context: "By the late 1930s, Americans argued over the New Deal's costs, speed, and reach. Many programs helped families and communities, but recovery remained incomplete. This debate is central to APUSH because it shows both the expansion and the limits of federal power."
+    },
+    "mg-1938-recovery": {
+        prompt: "Uneven Recovery: Keep Relief or Rebuild Private Work?",
+        context: "Some indicators improved by 1938, but many families still lacked security. New Deal programs provided relief and reform, yet mass unemployment remained a major issue before WWII mobilization. The question is not whether recovery existed, but who felt it and how much."
+    },
+    "mg-1939-poland": {
+        prompt: "War in Europe: Aid Allies or Stay Out?",
+        context: "Germany invaded Poland in 1939, and Britain and France declared war. The United States did not immediately enter the conflict. Americans debated whether aid could stop aggression or whether involvement would repeat the trauma of World War I."
+    },
+    "mg-1939-neutrality": {
+        prompt: "Neutrality and Cash-and-Carry: Distance or Limited Aid?",
+        context: "Neutrality Acts reflected the desire to avoid another European war. Cash-and-carry allowed belligerents to buy supplies if they paid cash and transported them. This compromise kept the U.S. formally out while still moving policy toward aid."
+    },
+    "mg-1940-draft": {
+        prompt: "Selective Training Act: Prepare or Resist a Peacetime Draft?",
+        context: "The Selective Training and Service Act created the first peacetime draft in U.S. history. Preparedness supporters saw danger growing abroad. Critics feared that military preparation could pull the country closer to war."
+    },
+    "mg-1940-arsenal": {
+        prompt: "Arsenal of Democracy: Take Defense Work or Avoid War Industry?",
+        context: "Before formal entry into World War II, defense orders expanded factories and shipyards. Roosevelt described the United States as an Arsenal of Democracy. Defense jobs offered wages while also tying workers to a war many Americans still hoped to avoid."
+    },
+    "mg-1941-lend-lease": {
+        prompt: "Lend-Lease: Aid the Allies or Guard Neutrality?",
+        context: "The Lend-Lease Act sent aid to nations fighting the Axis before the U.S. entered the war. Supporters argued that supplying allies strengthened U.S. security. Opponents worried that aid blurred the line between neutrality and war."
+    },
+    "mg-1941-pearl-harbor": {
+        prompt: "Pearl Harbor: Mobilize or Steady the Household?",
+        context: "Japan attacked Pearl Harbor on December 7, 1941. The attack sharply changed public opinion and pushed the United States into World War II. Families faced fear and grief while the federal government moved rapidly toward mobilization."
+    },
+    "mg-1941-war": {
+        prompt: "U.S. Declares War: Join Mobilization or Protect Routine?",
+        context: "After Pearl Harbor, Congress declared war and the home front began to change quickly. Factories, military service, and federal spending expanded. Families had to adapt to a wartime economy before knowing how long the conflict would last."
+    },
+    "mg-1942-wpb": {
+        prompt: "War Production Board: Military Output or Civilian Goods?",
+        context: "The War Production Board directed factories to convert from consumer goods to military production. This shift created jobs and helped supply the war effort. It also meant households faced shortages and fewer consumer choices."
+    },
+    "mg-1942-opa": {
+        prompt: "OPA Rationing: Follow Rules or Stretch Supplies Locally?",
+        context: "The Office of Price Administration managed rationing and price controls during the war. Ration books limited access to goods such as gasoline, sugar, and meat. Families improvised, but the system depended on shared sacrifice."
+    },
+    "mg-1942-incarceration": {
+        prompt: "Japanese American Incarceration: Speak Up or Stay Silent?",
+        context: "In 1942, the federal government forced many Japanese Americans from their homes and into incarceration camps. This was a serious civil liberties violation shaped by wartime fear and racism. The choice asks how difficult it can be to defend rights during a national emergency."
+    },
+    "mg-1943-rosie": {
+        prompt: "Women in War Industry: Take Factory Work or Weigh Barriers?",
+        context: "Wartime factories needed workers, and many women entered industrial jobs in large numbers. Rosie the Riveter became a symbol of this shift. Opportunities expanded, but women still faced unequal pay, childcare pressures, and expectations about leaving jobs after the war."
+    },
+    "mg-1943-migration": {
+        prompt: "Industrial Migration: Move for War Work or Stay with Support?",
+        context: "War industries drew workers to cities, including many African Americans seeking industrial jobs. These moves created opportunity but did not erase discrimination in hiring, housing, or daily life. The choice weighs wages against community support and unequal treatment."
+    },
+    "mg-1943-bonds": {
+        prompt: "War Bonds: Finance the War or Keep Cash Close?",
+        context: "War bonds helped the federal government finance wartime spending. Buying them was promoted as patriotic sacrifice, but families still needed cash for rent, food, and emergencies. This choice connects personal finance to the scale of federal mobilization."
+    },
+    "mg-1944-jobs": {
+        prompt: "Falling Unemployment: War Mobilization and New Deal Legacy",
+        context: "By 1944, military service and war production had dramatically expanded employment. New Deal relief and reform still mattered, but wartime demand pushed job growth much further. The Depression faded through mobilization, not through one simple policy."
+    },
+    "mg-1944-strain": {
+        prompt: "Home Front Strain: Move for Shipyard Work or Stay Home?",
+        context: "Shipyards and factories offered wages that many families had not seen during the Depression. War work also brought long hours, housing shortages, and family separation. The wartime economy created opportunity and stress at the same time."
+    },
+    "mg-1945-war-ends": {
+        prompt: "1945 Reflection: Wartime Economy and New Deal Legacy",
+        context: "World War II ended in 1945 after years of mobilization. Federal spending, industrial production, and military service helped end Depression-era mass unemployment. The New Deal had changed expectations of government, but wartime demand transformed the economy."
+    },
+    "mg-1945-reflect": {
+        prompt: "Final Balance: Opportunity, Sacrifice, and Unequal Change",
+        context: "The years from 1929 to 1945 changed the relationship between citizens, government, and the economy. Relief, reform, and mobilization all mattered. The era created jobs and new expectations while also exposing inequality, incarceration, sacrifice, and loss."
+    }
+};
+
+const APUSH_CONTEXT_SENTENCES = {
+    "stock-crash-1929": "In APUSH terms, the crash weakened demand and confidence, but bank failures and unemployment made the Depression deeper.",
+    "buying-on-margin": "Buying on margin mattered because borrowed money turned a market decline into a wider financial crisis.",
+    "bank-failures": "Before FDIC protection, bank failures could erase savings and intensify panic in local communities.",
+    "breadlines": "Breadlines show why private charity alone could not meet the scale of Depression hardship.",
+    "unemployment-rises": "High unemployment reduced family income and consumer demand, which made recovery harder.",
+    "hoovervilles": "Hoovervilles became visible evidence that housing insecurity was tied to job loss and weak relief systems.",
+    "fdr-elected-1932": "FDR's election signaled public demand for a larger federal response to economic collapse.",
+    "emergency-banking-act": "The Emergency Banking Act used federal inspection and reopening to calm a banking crisis after the 1933 bank holiday.",
+    "bank-holiday": "The Bank Holiday was meant to stop runs long enough for the government to decide which banks could reopen.",
+    "fireside-chats": "Fireside Chats mattered because Roosevelt explained policy directly to households by radio.",
+    "fdic": "FDIC insurance was a reform that made ordinary depositors more willing to use banks.",
+    "ccc": "The CCC shows New Deal relief through wages, conservation work, and federal job creation.",
+    "cwa": "The CWA was emergency work relief, so its help was real but temporary.",
+    "pwa": "The PWA used large public works to create jobs and stimulate recovery.",
+    "wpa": "The WPA connected wages to public projects, making work relief more visible in communities.",
+    "tva": "The TVA combined jobs, electricity, and regional planning in the Tennessee Valley.",
+    "aaa": "The AAA tried to raise farm prices, but its benefits were uneven across rural America.",
+    "social-security-act": "Social Security was reform because it created a long-term federal safety net.",
+    "wagner-act": "The Wagner Act expanded worker protections and strengthened organized labor.",
+    "farm-foreclosures": "Farm foreclosures show how debt and falling prices pushed rural families into crisis.",
+    "dry-dust-bowl-conditions": "Dust Bowl conditions added environmental disaster to economic hardship.",
+    "migration-west": "Migration west offered hope for work but often brought low wages, discrimination, and crowded camps.",
+    "court-packing": "The court-packing controversy raised constitutional questions about checks and balances.",
+    "new-deal-opposition": "New Deal opposition reminds students that Americans disagreed over federal power, spending, and recovery.",
+    "neutrality-acts": "Neutrality laws reflected fear that trade and loans had pulled the United States into World War I.",
+    "germany-invades-poland": "Germany's invasion of Poland in 1939 began the war in Europe and forced new U.S. neutrality debates.",
+    "britain-france-declare-war": "Britain and France declaring war made the European conflict impossible for Americans to ignore.",
+    "isolationism-debate": "Isolationism was not simple indifference; many Americans feared another costly foreign war.",
+    "cash-and-carry": "Cash-and-carry allowed limited aid while keeping the United States formally out of war.",
+    "selective-training-service-act": "The Selective Training and Service Act marked a major step toward military preparedness before Pearl Harbor.",
+    "arsenal-of-democracy": "The Arsenal of Democracy idea connected U.S. industrial production to Allied survival before formal entry.",
+    "lend-lease": "Lend-Lease moved the United States closer to the Allies by sending supplies before declaring war.",
+    "pearl-harbor": "Pearl Harbor changed the debate because a direct attack made U.S. entry into World War II immediate.",
+    "us-declares-war": "The declaration of war accelerated federal spending, military service, and home-front production.",
+    "war-production-board": "The War Production Board directed industrial conversion for total war.",
+    "office-price-administration": "The OPA used rationing and price controls to manage scarcity and inflation.",
+    "rationing": "Rationing connected everyday household choices to wartime supply needs.",
+    "war-bonds": "War bonds helped finance federal wartime spending through household savings.",
+    "rosie-women-industry": "Rosie symbolism represents women entering industrial jobs while gender inequality remained.",
+    "african-american-industrial-migration": "African American industrial migration created new job opportunities while discrimination continued.",
+    "japanese-american-incarceration": "Japanese American incarceration was a grave civil liberties violation during wartime.",
+    "wartime-shipyard-factory-jobs": "Factory and shipyard jobs helped pull many families out of Depression-era unemployment.",
+    "unemployment-falls-mobilization": "Wartime mobilization, not the New Deal alone, drove the sharp fall in unemployment.",
+    "wwii-ends-1945": "By 1945, the U.S. economy had been transformed by federal spending, production, and military mobilization."
+};
+
+function sentenceCount(text = ""){
+    return (text.match(/[.!?](\s|$)/g) || []).length;
+}
+
+function apushContextFor(factIds = []){
+    for(let factId of factIds){
+        if(APUSH_CONTEXT_SENTENCES[factId]) return APUSH_CONTEXT_SENTENCES[factId];
+    }
+    return "APUSH takeaway: this decision shows how people weighed survival, federal action, and uncertainty during a changing economy.";
+}
+
+function cleanChoiceLanguage(text = ""){
+    return text
+        .replace(/until (trust|confidence)\s+returns/gi, "while banks are still being tested")
+        .replace(/helps confidence\s+return/gi, "helps rebuild public faith in banks")
+        .replace(new RegExp("confidence " + "rebuilds" + "\\s+more slowly", "gi"), "families stay cautious about banks")
+        .replace(/depends on\s+confidence/gi, "depends on people believing inspected banks can operate");
+}
+
+function enrichChoiceContent(stages){
+    for(let stage of stages){
+        for(let event of stage.events || []){
+            const choice = event.miniGame;
+            if(!choice) continue;
+            const copy = CHOICE_COPY[choice.id];
+            if(copy){
+                choice.prompt = copy.prompt;
+                choice.context = copy.context;
+            }
+            else{
+                choice.context = `${choice.prompt} This decision appears during ${stage.label}. It connects personal survival to larger APUSH themes of government, work, reform, and mobilization.`;
+            }
+            choice.instructions = cleanChoiceLanguage(choice.instructions);
+            for(let option of choice.options){
+                option.label = cleanChoiceLanguage(option.label);
+                option.consequence = cleanChoiceLanguage(option.consequence);
+                if(sentenceCount(option.consequence) < 2){
+                    option.consequence = `${option.consequence} ${apushContextFor([...(option.factIds || []), ...(choice.factIds || [])])}`;
+                }
+            }
+        }
+    }
+}
+
+function addMysteryCollectibles(stages){
+    for(let stage of stages){
+        if(stage.startYear >= 1933 && stage.startYear <= 1935){
+            stage.collectibles.push({ label: "New Deal Wheel", effect: {}, mysteryGame: "new-deal-wheel", factIds: ["ccc", "wpa", "tva", "fdic"] });
+        }
+        if(stage.startYear >= 1942 && stage.startYear <= 1944){
+            stage.collectibles.push({ label: "Production Crate", effect: {}, mysteryGame: "production-crate", factIds: ["war-production-board", "rationing"] });
+        }
+    }
+}
+
+enrichChoiceContent(YEARLY_STAGES);
+addMysteryCollectibles(YEARLY_STAGES);
 
 APUSH_CONTENT.stages = YEARLY_STAGES;
 APUSH_CONTENT.choices = YEARLY_STAGES.flatMap((stage)=> stage.events.map((event)=> event.miniGame).filter(Boolean));
@@ -1594,10 +1979,14 @@ class Game {
         this.narrativeTimer = 0;
         this.newsMessage = null;
         this.newsTimer = 0;
+        this.sourcePopup = null;
+        this.sourceTimer = 0;
         this.lastResourceNote = "";
         this.noteTimer = 0;
         this.currentChoice = null;
         this.choiceResult = null;
+        this.currentMiniGame = null;
+        this.miniResult = null;
         this.pendingHardship = false;
         this.display = new display(this);
         this.enterStage(0);
@@ -1656,7 +2045,7 @@ class Game {
             this.display.sync(this);
             return;
         }
-        if(this.state == "choice"){
+        if(this.state == "choice" || this.state == "mini"){
             this.updateMessageTimers(frametime);
             this.display.sync(this);
             return;
@@ -1688,6 +2077,12 @@ class Game {
         }
         else{
             this.newsMessage = null;
+        }
+        if(this.sourceTimer > 0){
+            this.sourceTimer = Math.max(0, this.sourceTimer - frametime);
+        }
+        else{
+            this.sourcePopup = null;
         }
         if(this.narrativeTimer > 0){
             this.narrativeTimer = Math.max(0, this.narrativeTimer - frametime);
@@ -1810,9 +2205,14 @@ class Game {
 
     collect(actor){
         this.markFacts(actor.data.factIds);
+        if(actor.data.mysteryGame){
+            this.triggerMiniGame(actor.data.mysteryGame);
+            return;
+        }
         this.applyResourceEffect(actor.data.effect, actor.data.label);
         this.lastResourceNote = `${actor.data.label}: ${formatEffect(actor.data.effect)}`;
         this.noteTimer = 2.2;
+        this.showSourcePopup(sourcePopupFor(actor.data));
     }
 
     hitObstacle(actor){
@@ -1841,6 +2241,52 @@ class Game {
         this.markFacts(choice.factIds);
     }
 
+    triggerMiniGame(miniGameId){
+        const miniGame = SPECIAL_MINIGAMES[miniGameId];
+        if(!miniGame) return;
+        this.state = "mini";
+        this.currentMiniGame = miniGame;
+        this.miniResult = null;
+        this.pendingHardship = false;
+        this.markFacts(miniGame.factIds);
+        this.showSourcePopup(miniGameId == "new-deal-wheel" ? SOURCE_POPUPS.newDeal : SOURCE_POPUPS.homeFront);
+    }
+
+    playMiniGame(optionIndex = null){
+        if(!this.currentMiniGame || this.miniResult) return;
+        let result;
+        if(this.currentMiniGame.type == "wheel"){
+            const outcomes = this.currentMiniGame.outcomes;
+            result = outcomes[Math.floor(Math.random() * outcomes.length)];
+        }
+        else{
+            result = this.currentMiniGame.options[optionIndex];
+        }
+        if(!result) return;
+        this.applyResourceEffect(result.effect);
+        this.markFacts(result.factIds);
+        this.miniResult = {
+            label: result.label,
+            explanation: result.explanation,
+            effect: formatEffect(result.effect),
+            factIds: result.factIds || []
+        };
+        this.lastResourceNote = `${result.label}: ${formatEffect(result.effect)}`;
+        this.noteTimer = 2.6;
+        this.pendingHardship = this.hasHardship();
+    }
+
+    resumeFromMiniGame(){
+        this.currentMiniGame = null;
+        this.miniResult = null;
+        if(this.pendingHardship || this.hasHardship()){
+            this.showHardship();
+        }
+        else{
+            this.state = "playing";
+        }
+    }
+
     chooseOption(optionIndex){
         if(!this.currentChoice || this.choiceResult) return;
         const option = this.currentChoice.options[optionIndex];
@@ -1863,6 +2309,12 @@ class Game {
         else{
             this.state = "playing";
         }
+    }
+
+    showSourcePopup(popup){
+        if(!popup) return;
+        this.sourcePopup = popup;
+        this.sourceTimer = 7.5;
     }
 
     hasHardship(){
@@ -1926,6 +2378,12 @@ class GameRunner{
         this.game.display.onContinueChoice = ()=>{
             this.game.resumeFromChoice();
         };
+        this.game.display.onMiniGame = (index)=>{
+            this.game.playMiniGame(index);
+        };
+        this.game.display.onContinueMini = ()=>{
+            this.game.resumeFromMiniGame();
+        };
         window.addEventListener("keydown", (e)=>{
             if((e.key === "Enter" || e.key === " ") && this.game.state == "start"){
                 this.game.startJourney();
@@ -1968,6 +2426,7 @@ class Display{
         this.toast = makeelment("div", { "class": "narrative-toast" });
         this.news = makeelment("div", { "class": "news-messenger" });
         this.note = makeelment("div", { "class": "resource-note" });
+        this.source = makeelment("aside", { "class": "source-popup" });
         this.helpButton = makeelment("button", { "class": "help-button", "type": "button", "aria-label": "Show controls", "text": "?" });
         this.helpPanel = makeelment("aside", { "class": "help-panel" });
         this.overlay = makeelment("section", { "class": "overlay" });
@@ -1980,6 +2439,7 @@ class Display{
         this.frame.appendChild(this.toast);
         this.frame.appendChild(this.news);
         this.frame.appendChild(this.note);
+        this.frame.appendChild(this.source);
         this.frame.appendChild(this.helpButton);
         this.frame.appendChild(this.helpPanel);
         this.frame.appendChild(this.overlay);
@@ -2098,10 +2558,22 @@ class Display{
         else{
             this.note.classList.remove("show");
         }
+        if(game.sourcePopup){
+            const popup = game.sourcePopup;
+            this.source.innerHTML = `
+                <p class="source-kicker">${escapeHtml(popup.title)}</p>
+                <p>${escapeHtml(popup.excerpt)}</p>
+                <a href="${escapeHtml(popup.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(popup.source)}</a>
+            `;
+            this.source.classList.add("show");
+        }
+        else{
+            this.source.classList.remove("show");
+        }
     }
 
     drawOverlay(game){
-        const signature = `${game.state}:${game.currentChoice ? game.currentChoice.id : ""}:${game.choiceResult ? game.choiceResult.label : ""}:${game.encounteredFacts.size}`;
+        const signature = `${game.state}:${game.currentChoice ? game.currentChoice.id : ""}:${game.choiceResult ? game.choiceResult.label : ""}:${game.currentMiniGame ? game.currentMiniGame.id : ""}:${game.miniResult ? game.miniResult.label : ""}:${game.encounteredFacts.size}`;
         if(signature == this.overlaySignature) return;
         this.overlaySignature = signature;
         this.overlay.className = `overlay ${game.state == "playing" ? "" : "show"}`;
@@ -2119,6 +2591,9 @@ class Display{
         }
         else if(game.state == "choice"){
             this.drawChoice(game);
+        }
+        else if(game.state == "mini"){
+            this.drawMiniGame(game);
         }
         else if(game.state == "hardship"){
             this.overlay.innerHTML = `
@@ -2140,8 +2615,9 @@ class Display{
         }
     }
 
-    choiceMode(choice){
-        return (choice.mode || "Decision Point").replace(/^Mini-Game:\s*/i, "Choice: ");
+    choiceMode(choice, includeScrollCue = false){
+        const base = (choice.mode || "Decision Point").replace(/^Mini-Game:\s*/i, "Choice: ");
+        return includeScrollCue ? `${base} (Scroll Down)` : base;
     }
 
     drawChoice(game){
@@ -2150,8 +2626,10 @@ class Display{
         if(!game.choiceResult){
             this.overlay.innerHTML = `
                 <div class="screen-card choice-card">
-                    <p class="kicker">${this.choiceMode(choice)}</p>
+                    <p class="kicker">${this.choiceMode(choice, true)}</p>
                     <h2>${choice.prompt}</h2>
+                    <p class="choice-scroll-cue">Scroll down to read the background, inspect the image, and choose a response.</p>
+                    ${choice.context ? `<p class="choice-context">${choice.context}</p>` : ""}
                     ${this.renderChoiceVisual(choice)}
                     ${choice.instructions ? `<p class="choice-instructions">${choice.instructions}</p>` : ""}
                     <div class="choice-actions">
@@ -2179,6 +2657,56 @@ class Display{
                 </div>
             `;
             this.overlay.querySelector("[data-action='continue']").addEventListener("click", ()=> this.onContinueChoice());
+        }
+    }
+
+    drawMiniGame(game){
+        const miniGame = game.currentMiniGame;
+        if(!miniGame) return;
+        if(!game.miniResult){
+            const actionContent = miniGame.type == "wheel"
+                ? `
+                    <div class="program-wheel" aria-label="New Deal program wheel">
+                        ${miniGame.outcomes.map((outcome, index)=> `<span style="--i:${index};--n:${miniGame.outcomes.length}">${outcome.label}</span>`).join("")}
+                    </div>
+                    <button class="primary-action" data-mini-spin>Spin Wheel</button>
+                `
+                : `
+                    <div class="mini-options">
+                        ${miniGame.options.map((option, index)=> `
+                            <button class="mini-option" data-mini-choice="${index}">
+                                <strong>${option.label}</strong>
+                                <span>${formatEffect(option.effect)}</span>
+                            </button>
+                        `).join("")}
+                    </div>
+                `;
+            this.overlay.innerHTML = `
+                <div class="screen-card mini-card">
+                    <p class="kicker">${miniGame.kicker}</p>
+                    <h2>${miniGame.title}</h2>
+                    <p class="choice-context">${miniGame.context}</p>
+                    <h3>${miniGame.prompt}</h3>
+                    ${actionContent}
+                </div>
+            `;
+            const spinButton = this.overlay.querySelector("[data-mini-spin]");
+            if(spinButton) spinButton.addEventListener("click", ()=> this.onMiniGame());
+            for(let button of this.overlay.querySelectorAll("[data-mini-choice]")){
+                button.addEventListener("click", ()=> this.onMiniGame(Number(button.dataset.miniChoice)));
+            }
+        }
+        else{
+            this.overlay.innerHTML = `
+                <div class="screen-card mini-card">
+                    <p class="kicker">Mini Game Result</p>
+                    <h2>${game.miniResult.label}</h2>
+                    <p>${game.miniResult.explanation}</p>
+                    <p class="effect-line">${game.miniResult.effect}</p>
+                    <button class="primary-action" data-action="continue-mini">Continue</button>
+                </div>
+            `;
+            this.overlay.querySelector("[data-action='continue-mini']").addEventListener("click", ()=> this.onContinueMini());
         }
     }
 
@@ -2252,7 +2780,9 @@ function respnosive(game, smouth){
     else game.olddisplay.frame.style.transition = "";
     const baseWidth = scale * width;
     const baseHeight = scale * height;
-    const scaleX = Math.min(1, document.documentElement.clientWidth / baseWidth, document.documentElement.clientHeight / baseHeight);
+    const viewportWidth = document.documentElement.clientWidth * 0.94;
+    const viewportHeight = document.documentElement.clientHeight * 0.9;
+    const scaleX = Math.min(2.2, viewportWidth / baseWidth, viewportHeight / baseHeight);
     game.olddisplay.frame.style.transform = `scale(${scaleX})`;
 }
 
