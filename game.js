@@ -2711,7 +2711,6 @@ class Display{
                 <div class="screen-card choice-card">
                     <p class="kicker">${this.choiceMode(choice, true)}</p>
                     <h2>${choice.prompt}</h2>
-                    <p class="choice-scroll-cue">Scroll down to read the background, inspect the image, and choose a response.</p>
                     ${choice.context ? `<p class="choice-context">${choice.context}</p>` : ""}
                     ${this.renderChoiceVisual(choice)}
                     ${choice.instructions ? `<p class="choice-instructions">${choice.instructions}</p>` : ""}
